@@ -14,16 +14,31 @@ try:
 except ImportError:
     venv = os.path.expanduser(os.environ.get("ANRUFLISTE_VENV", "~/.cache/anrufliste-venv"))
     py = os.path.join(venv, "Scripts", "python.exe") if os.name == "nt" else os.path.join(venv, "bin", "python3")
-    if os.path.realpath(sys.executable) == os.path.realpath(py):
-        sys.exit(f"openpyxl ließ sich nicht installieren (Ordner {venv} löschen und erneut versuchen)")
-    try:
+    # Laufen wir schon in der eigenen Umgebung? Über sys.prefix prüfen: Der Python-Pfad der venv ist auf dem Mac
+    # nur ein Verweis auf das System-Python und wäre deshalb schon vor der Einrichtung „gleich“.
+    if os.path.realpath(sys.prefix) == os.path.realpath(venv):
+        sys.exit(f"openpyxl ließ sich in {venv} nicht laden. Ordner löschen und erneut versuchen.")
+
+    def einrichten():
         if not os.path.exists(py):
             if subprocess.call([sys.executable, "-m", "venv", venv]) != 0:
                 sys.exit("Python kann keine eigene Umgebung anlegen. Unter Debian/Ubuntu einmal 'sudo apt install python3-venv' ausführen, dann erneut versuchen.")
         if subprocess.call([py, "-c", "import openpyxl"], stderr=subprocess.DEVNULL) != 0:
-            subprocess.check_call([py, "-m", "pip", "install", "-q", "--disable-pip-version-check", "openpyxl"])
-    except (subprocess.CalledProcessError, OSError) as e:
-        sys.exit(f"openpyxl ließ sich nicht installieren ({e}); Internet prüfen und erneut versuchen")
+            r = subprocess.run([py, "-m", "pip", "install", "-q", "--disable-pip-version-check", "openpyxl"],
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                raise RuntimeError((r.stderr or r.stdout).strip()[-400:] or f"pip Code {r.returncode}")
+
+    try:
+        einrichten()
+    except (RuntimeError, OSError):
+        # halb eingerichtete Umgebung wegräumen und einmal frisch versuchen
+        import shutil
+        shutil.rmtree(venv, ignore_errors=True)
+        try:
+            einrichten()
+        except (RuntimeError, OSError) as e:
+            sys.exit(f"openpyxl ließ sich nicht installieren. Internetverbindung prüfen und erneut versuchen.\n{e}")
     if os.name == "nt":  # execv ersetzt unter Windows den Prozess nicht sauber
         sys.exit(subprocess.call([py] + sys.argv))
     os.execv(py, [py] + sys.argv)
