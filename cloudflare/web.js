@@ -1,8 +1,8 @@
 // Browser-only adapters. Research runs inside the user's own Claude or OpenAI account.
 let connectorUrl='',connectorLegacyUrl='',cloudConnected=false,cloudPrompt='',lastSnapshot='',cloudPolling=false,cloudConnections={},cloudConnectedAt=null;
-// Recherche läuft immer direkt hier (eigener API-Schlüssel). Der Umweg über den Claude-Chat/ChatGPT ist aus der Oberfläche entfernt;
-// die MCP-Schnittstelle bleibt serverseitig nur für bestehende Verbindungen bestehen.
-let cloudProvider='direct';
+// Standard: Recherche im eigenen Claude-Chat (Abo des Nutzers, über den Connector). Alternative: direkt hier mit eigenem API-Schlüssel.
+let cloudProvider='claude';
+try{const v=localStorage.getItem('research-provider');if(v==='direct')cloudProvider=v}catch{}
 // Direct research: the user's own Anthropic API key stays in this browser (localStorage) and only goes to api.anthropic.com.
 const DIRECT_KEY='anthropic-api-key',DIRECT_MODEL='direct-model',DIRECT_JOB='direct-job';
 let directJobId=null,directRunning=false,directCtl=null,directLog=[],directPhase='prepare',directCostSum=null,directError='',directDone=false;
@@ -20,6 +20,7 @@ function cloudApplyProvider(){
  const client=cloudClientName(),name=cloudProviderName();
  if($('#cloudProvider'))$('#cloudProvider').value=cloudProvider;
  const direct=cloudProvider==='direct';
+ if($('#keyToggle'))$('#keyToggle').textContent=direct?cloudText('Anthropic-Schlüssel','Anthropic key'):cloudText('Verbinden','Connect');
  for(const [key,value]of Object.entries({lead:cloudText(`Dein eigenes ${client} sucht passende Firmen mit Entscheidern, Durchwahlen und Kaufsignalen. Jede Angabe mit Quelle, keine Firma doppelt.`,`Your own ${client} finds matching companies with decision makers, direct lines and buying signals. Every fact with a source.`),local:cloudText(`Im Browser. Dein eigenes ${name}-Konto.`,`In your browser. Your own ${name} account.`),runHint:direct?cloudText('Claude recherchiert direkt hier im Browser. Tab offen lassen.','Claude researches right here in your browser. Keep the tab open.'):cloudText(`Auftrag hier erstellen, im eigenen ${client}-Tab recherchieren.`,`Create your brief here, research in your own ${client} tab.`),h2d:cloudText(`Dein ${client} recherchiert. Firmen erscheinen hier live.`,`Your ${client} researches. Companies appear live here.`)}))document.querySelectorAll(`[data-i="${key}"]`).forEach(e=>e.textContent=value);
  $('#cloudHandoffTitle').textContent=cloudText(`Mit deinem eigenen ${client} recherchieren`,`Research with your own ${client}`);
  $('#cloudHandoffText').textContent=cloudProvider==='openai'?cloudText('Aktiviere in ChatGPT Work dein Anrufliste-Plugin und die Websuche. Füge den kopierten Auftrag ein. Die Firmen erscheinen automatisch hier.','In ChatGPT Work, enable your Anrufliste plugin and web search. Paste the copied brief. Companies appear here automatically.'):cloudText('Ein Klick öffnet Claude mit dem fertigen Auftrag, dort nur noch Senden drücken. Der Anrufliste-Connector muss eingeschaltet sein (Menü „+“ → Konnektoren). Die Firmen erscheinen automatisch hier.','One click opens Claude with your brief, just press send there. The Anrufliste connector must be on (menu “+” → Connectors). Companies appear here automatically.');
@@ -75,7 +76,7 @@ async function cloudTick(){
    $('#cloudHandoff').classList.toggle('hide',!active||directHere);
    if(directHere)$('#stateTxt').textContent=cloudText('Claude recherchiert direkt hier im Browser. Tab offen lassen, solange die Recherche läuft. Firmen erscheinen unten live.','Claude is researching right here in your browser. Keep this tab open while it runs. Companies appear below live.');
    else if(active){
-    cloudPrompt=`Nutze meinen Anrufliste-Connector bzw. mein Anrufliste-Plugin. Rufe get_research_brief mit job_id "${data.job.id}" auf. Recherchiere die darin beschriebene Zielgruppe mit Websuche und lies die öffentlichen Firmenwebsites. Speichere belegte Firmen nach je 3–5 mit save_companies für diesen Auftrag. Verwende nur belegte Angaben; fehlende Werte: –. Schließe mit finish_research ab und speichere einen konkreten Gesprächsleitfaden. Niemanden kontaktieren und keine Formulare absenden.`;
+    cloudPrompt=`Nutze meinen Anrufliste-Connector bzw. mein Anrufliste-Plugin. Rufe get_research_brief mit job_id "${data.job.id}" auf. Recherchiere die darin beschriebene Zielgruppe mit Websuche und lies die öffentlichen Firmenwebsites. Speichere belegte Firmen nach je 3–5 mit save_companies für diesen Auftrag. Verwende nur belegte Angaben; fehlende Werte: –. Schließe mit finish_research ab und speichere einen konkreten Gesprächsleitfaden. Niemanden kontaktieren und keine Formulare absenden. Antworte im Chat am Ende nur in einem Satz (z. B. „Fertig, 5 Firmen gespeichert, siehe Anrufliste.“), schreibe die Firmenliste nicht in den Chat.`;
     $('#cloudPrompt').value=cloudPrompt;
     $('#stateTxt').textContent=interrupted?cloudText('Die Recherche in diesem Browser wurde unterbrochen (Seite neu geladen oder Tab geschlossen). Bitte abbrechen und neu starten oder unten im Claude-Chat fortsetzen.','The research in this browser was interrupted (page reloaded or tab closed). Cancel and start again, or continue in the Claude chat below.'):data.job.state==='waiting'?cloudText(`Auftrag bereit. Öffne ihn in deinem eigenen ${cloudClientName()}-Tab.`,`Brief ready. Open it in your own ${cloudClientName()} tab.`):cloudText('Dein verbundenes Konto recherchiert. Gespeicherte Firmen erscheinen hier.','Your connected account is researching. Saved companies appear here.');
    }
