@@ -5,6 +5,7 @@ let cloudProvider='direct';
 try{const v=localStorage.getItem('research-provider');if(v==='claude')cloudProvider=v}catch{}
 // Direct research: the user's own Anthropic API key stays in this browser (localStorage) and only goes to api.anthropic.com.
 const DIRECT_KEY='anthropic-api-key',DIRECT_MODEL='direct-model',DIRECT_JOB='direct-job';
+try{const v=localStorage.getItem(DIRECT_KEY);if(v&&!/^sk-ant-api\d*-[A-Za-z0-9_-]{20,}$/.test(v))localStorage.removeItem(DIRECT_KEY)}catch{}
 let directJobId=null,directRunning=false,directCtl=null,directLog=[],directPhase='prepare',directCostSum=null,directError='',directDone=false;
 function lsGet(k){try{return localStorage.getItem(k)||''}catch{return ''}}
 function lsSet(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch{}}
@@ -163,7 +164,10 @@ window.addEventListener('DOMContentLoaded',()=>{
  const cancel=$('#cancelBtn').onclick;$('#cancelBtn').onclick=()=>{directCtl?.abort();return cancel&&cancel()};
  document.addEventListener('click',e=>{
   const a=e.target.closest('[data-act]');if(!a)return;
-  if(a.dataset.act==='directKeySave'){const v=($('#directKeyInput')?.value||'').trim();if(!v)return;lsSet(DIRECT_KEY,v);$('#errorBox').innerHTML='';cloudStatus()}
+  if(a.dataset.act==='directKeySave'){const v=($('#directKeyInput')?.value||'').trim();if(!v)return;
+   // Nur echte Anthropic-API-Schlüssel annehmen (sk-ant-api…); Claude-Abo-Tokens, Passwörter o. Ä. ablehnen
+   if(!/^sk-ant-api\d*-[A-Za-z0-9_-]{20,}$/.test(v)){$('#errorBox').innerHTML=notice('bad',cloudText('Das ist kein Anthropic-API-Schlüssel','This is not an Anthropic API key'),esc(cloudText('API-Schlüssel beginnen mit „sk-ant-api“ und sind rund 100 Zeichen lang. Du bekommst einen unter console.anthropic.com → API Keys.','API keys start with “sk-ant-api” and are about 100 characters long. Create one at console.anthropic.com → API Keys.')));return}
+   lsSet(DIRECT_KEY,v);$('#errorBox').innerHTML='';cloudStatus()}
   if(a.dataset.act==='directKeyDel'){lsSet(DIRECT_KEY,'');cloudStatus()}
  });
  document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='directKeyInput'){e.preventDefault();document.querySelector('[data-act="directKeySave"]')?.click()}});
