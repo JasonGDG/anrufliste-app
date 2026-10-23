@@ -30,7 +30,7 @@ async function basicOk(request,env){let credentials='';try{credentials=atob((req
 const loginRequired=()=>new Response('Bitte mit Benutzername und Passwort anmelden.',{status:401,headers:{'WWW-Authenticate':'Basic realm="Anrufliste", charset="UTF-8"','Cache-Control':'no-store'}});
 function secure(response,{cookie,html}={}){
  const headers=new Headers(response.headers);
- headers.set('Cache-Control','no-store');headers.set('X-Frame-Options','DENY');headers.set('Referrer-Policy','no-referrer');headers.set('X-Content-Type-Options','nosniff');
+ headers.set('Cache-Control','no-store');headers.set('X-Frame-Options','DENY');headers.set('Referrer-Policy','same-origin');headers.set('X-Content-Type-Options','nosniff');
  headers.set('Content-Security-Policy',"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self' https: http://localhost:* http://127.0.0.1:*");
  if(html)headers.set('Content-Type','text/html; charset=utf-8');
  if(cookie)headers.append('Set-Cookie',cookie);
@@ -74,7 +74,10 @@ async function authorize(request,env,session,cookie){
   }
   if(request.method!=='POST')return new Response(null,{status:405,headers:{Allow:'GET, POST'}});
   const origin=request.headers.get('Origin');
-  if(origin&&origin!==new URL(request.url).origin)return errorPage('Ungültige Anfrageherkunft.',403);
+  // Browser schicken bei manchen Formularen Origin "null"; dann zählt die eindeutige Angabe Sec-Fetch-Site
+  const site=request.headers.get('Sec-Fetch-Site');
+  const sameOrigin=origin===new URL(request.url).origin||((!origin||origin==='null')&&(site==='same-origin'||!site));
+  if(!sameOrigin||(site&&site!=='same-origin'))return errorPage('Ungültige Anfrageherkunft.',403);
   if(cookie)return errorPage('Bitte die Anrufliste zuerst in diesem Browser öffnen.');
   const form=await request.formData(),handle=String(form.get('handle')||'');
   if(form.get('decision')!=='approve'){const denied=await oauth.denyConsent(request,handle);return new Response(null,{status:302,headers:denied.headers})}
