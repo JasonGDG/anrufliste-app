@@ -1,0 +1,36 @@
+{
+  "arm64": {
+    "node": {
+      "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-arm64.tar.gz",
+      "sha256": "c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428",
+      "version": "v22.23.4"
+    },
+    "python": {
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.12.15%2B20261021-aarch64-apple-darwin-install_only.tar.gz",
+      "sha256": "a18cc33862b53bd54a148c710def5375c1b47470cccedf817a19c2d211764584",
+      "version": "cpython-3.12.15"
+    },
+    "claude": {
+      "url": "https://downloads.claude.ai/claude-code-releases/2.1.309/darwin-arm64/claude",
+      "sha256": "5eadc0009cdcdbc0d06e58110d7b2baf88ced6088b1c33a60a21217fe410619c",
+      "version": "2.1.309"
+    }
+  },
+  "x64": {
+    "node": {
+      "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-x64.tar.gz",
+      "sha256": "efcc2b0db6f94bf53eddb038fe2b370277a042bd29e4f19b8f8e23598795b819",
+      "version": "v22.23.4"
+    },
+    "python": {
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.12.15%2B20261021-x86_64-apple-darwin-install_only.tar.gz",
+      "sha256": "869e0b30959beccc616ce14907439f4d0b3170c5830a2362dade07f07b0ed3b8",
+      "version": "cpython-3.12.15"
+    },
+    "claude": {
+      "url": "https://downloads.claude.ai/claude-code-releases/2.1.309/darwin-x64/claude",
+      "sha256": "200e0d775ae55c040db3bb8db8de3e22efcddbd7e0abff5ab50dd10f6853425d",
+      "version": "2.1.309"
+    }
+  }
+}

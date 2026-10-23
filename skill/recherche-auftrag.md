@@ -1,6 +1,7 @@
 # Recherche-Auftrag Anrufliste
 
 Ziel: echte, anrufbare Firmen für Kaltakquise am Telefon. Nur nachprüfbare Fakten von Websites, Registern und Verzeichnissen, nichts erfinden. Nicht auffindbar: "–".
+Datenschutz: nur geschäftliche Kontaktdaten aus Firmenquellen (Impressum, Team, Kontakt, Karriere, Firmenverzeichnisse). Keine privaten Nummern, Privatadressen oder privaten Social-Media-Daten, keine Personenprofile über die berufliche Rolle hinaus. Jede Angabe mit Quelle (URL), damit der Nutzer beim Anruf sagen kann, woher er die Daten hat.
 
 ## Auftrag (vom Orchestrator ausgefüllt)
 - Wir verkaufen: {ANGEBOT}

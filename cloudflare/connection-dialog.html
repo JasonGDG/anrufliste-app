@@ -1,0 +1,10 @@
+<dialog id="connectorDialog" style="max-width:680px;width:calc(100vw - 30px);max-height:90vh;overflow:auto;background:var(--sheet);color:var(--ink);border:1px solid var(--rule-2);border-radius:10px;padding:28px;font:14px/1.6 var(--font)">
+<div style="display:flex;align-items:center;gap:18px"><h2 id="connectorTitle" style="margin:0;flex:1">Eigenes Konto verbinden</h2><button class="btn sec sm" id="closeConnector" type="button">Schließen</button></div>
+<div id="connectorInstructions"></div>
+<input id="connectorUrl" readonly aria-label="Connector-URL" style="width:100%;padding:10px;background:var(--navy);color:var(--ink);border:1px solid var(--rule-2);border-radius:5px;font:11px ui-monospace,monospace">
+<div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap"><button class="btn sec sm" id="copyConnector">URL kopieren</button><a class="btn pri sm" id="providerSettingsLink" href="https://claude.ai/settings/connectors" target="_blank" rel="noopener noreferrer">Einrichtung öffnen ↗</a></div>
+<div id="connectorAfter"></div>
+<p class="small">Die Adresse ist für alle gleich. Zugriff auf deine Listen bekommt dein Konto erst, wenn du die Verbindung in diesem Browser bestätigst. Deine Listen gehören zu diesem Browser; ein anderer Browser hat einen getrennten Zugang.</p>
+<p class="small"><a href="/impressum" target="_blank">Impressum</a> · <a href="/datenschutz" target="_blank">Datenschutz</a></p>
+<div style="margin-top:16px"><button class="btn sec sm" id="checkConnector">Verbindung prüfen</button><p id="connectorState" class="small" aria-live="polite"></p></div>
+</dialog>

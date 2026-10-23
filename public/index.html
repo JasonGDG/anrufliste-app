@@ -165,6 +165,21 @@ td .tel{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ink)}
 .dash{color:var(--dash)}
 tr.new td{animation:neu 2s ease-out}
 @keyframes neu{from{box-shadow:inset 0 0 0 999px var(--flash)}to{box-shadow:inset 0 0 0 999px transparent}}
+tr.gesperrt td,tr.gesperrt td .tel,tr.gesperrt td a,tr.gesperrt td.firm{color:var(--ink-3)}
+tr.gesperrt td.firm{text-decoration:line-through}
+tr.gesperrt td.s1{box-shadow:inset 3px 0 0 var(--red)}
+.sperr{font:500 12px/1 var(--font);color:var(--ink-3);background:none;border:1px solid var(--rule-2);border-radius:5px;padding:5px 8px;cursor:pointer;white-space:nowrap}
+.sperr:hover{color:var(--red);border-color:var(--red)}
+tr.gesperrt .sperr{opacity:1;color:var(--red);border-color:var(--red)}
+.btn.warn{color:var(--red);border-color:var(--rule-2)}.btn.warn:hover{border-color:var(--red)}
+.legal{margin-top:22px;border:1px solid var(--rule);border-radius:6px;background:var(--sheet)}
+.legal summary{cursor:pointer;list-style:none;padding:12px 14px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.legal summary::-webkit-details-marker{display:none}
+.legal summary::before{content:"+ ";color:var(--ink-3)}.legal[open] summary::before{content:"– "}
+.legal .body{padding:0 14px 14px;font-size:13px;color:var(--ink-2)}
+.legal .body p{margin:0 0 8px}.legal .body ul{margin:0 0 8px;padding-left:18px}
+.sperrrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.sperrrow input{flex:1;min-width:200px;font:13px var(--font);color:var(--ink);background:var(--navy);border:1px solid var(--rule-2);border-radius:5px;padding:7px 9px}
 .empty{padding:40px 28px;color:var(--ink-3);font-size:14px}
 .foot{padding:10px 28px;color:var(--ink-3);font-size:12px;border-top:1px solid var(--rule)}
 </style>
@@ -212,6 +227,27 @@ tr.new td{animation:neu 2s ease-out}
           <div><b data-i="h2t">2. Recherche</b><span data-i="h2d">Firmen erscheinen live, während Claude sucht.</span></div>
           <div><b data-i="h3t">3. Anrufen</b><span data-i="h3d">Hier ansehen oder als Excel laden.</span></div>
         </div>
+        <details class="legal">
+          <summary data-i="legalTitle">Rechtliches vor dem Anrufen</summary>
+          <div class="body" id="legalBody">
+            <p><b>Du bist verantwortlich</b> für die Anrufe und die Daten in deinen Listen. Das ist ein Hinweis, keine Rechtsberatung.</p>
+            <ul>
+              <li><b>Telefonwerbung (§ 7 UWG):</b> Firmen nur anrufen, wenn sie den Anruf vermutlich wollen. Eine öffentliche Nummer, die Branche oder eine offene Stelle allein reichen laut Gerichten meist nicht. Besser: mit einem konkreten Anlass anrufen, z. B. einem passenden Kandidaten für genau die ausgeschriebene Stelle.</li>
+              <li><b>Keine Werbe-E-Mails</b> ohne ausdrückliche Einwilligung.</li>
+              <li><b>Datenschutz (Art. 14 DSGVO):</b> Beim ersten Kontakt sagen, woher du die Kontaktdaten hast (z. B. „von Ihrer Website“), und auf das Widerspruchsrecht hinweisen. Der Gesprächsleitfaden enthält dafür einen Satz.</li>
+              <li><b>Widerspruch:</b> Wer keine Anrufe will, kommt auf die Sperrliste und wird nie wieder vorgeschlagen.</li>
+              <li><b>Aufbewahrung:</b> Listen werden nach 6 Monaten automatisch gelöscht. Gesperrte Firmen bleiben gesperrt.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="legal">
+          <summary><span data-i="sperrTitle">Sperrliste</span> (<span id="sperrCount">0</span>)</summary>
+          <div class="body">
+            <p data-i="sperrHint">Firmen, die nicht mehr angerufen werden wollen. Sie kommen in keiner neuen Liste mehr vor. In einer Liste sperrst du über „Sperren“ in der letzten Spalte.</p>
+            <div class="sperrrow"><input id="sperrInput" data-ph="sperrPh" placeholder="Website oder Firmenname, z. B. beispiel-gmbh.de"><button class="btn sec sm" id="sperrAdd" type="button" data-i="sperrAdd">Sperren</button></div>
+            <div class="small" id="sperrListe" style="margin-top:10px"></div>
+          </div>
+        </details>
         <p class="small" style="margin-top:18px"><span data-i="noDupes">Alte Excel-Listen, deren Firmen übersprungen werden sollen, in diesen Ordner legen:</span> <code id="altDir" style="color:var(--ink-2)"></code></p>
       </div></div>
     </section>
@@ -222,6 +258,7 @@ tr.new td{animation:neu 2s ease-out}
         <h1 id="sheetTitle">Anrufliste</h1><span class="meta" id="sheetCount"></span><span class="meta" id="elapsedWrap"><span id="elapsed">0:00</span></span>
         <div class="sp"></div>
         <button class="btn sec sm" id="cancelBtn" type="button" data-i="cancel">Abbrechen</button>
+        <button class="btn sec sm warn hide" id="delBtn" type="button" data-i="delList">Liste löschen</button>
         <a class="btn pri sm hide" id="dlBtn" href="/api/excel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg><span data-i="download">Excel herunterladen</span></a>
       </div>
       <div class="runbox" id="runCard">
@@ -278,7 +315,7 @@ const EN = {
   companies: 'companies', partial: 'The companies found so far are in the Excel file and won\'t come up again next time.',
   partialDl: 'Download partial list', cPrio: 'Prio', cStufe: 'Tier', cFirma: 'Company', cAP: 'Contact', cRolle: 'Role',
   cTelAP: 'Direct line', cTelZ: 'Switchboard', cMail: 'Email', cWeb: 'Website', cMA: 'Employees', cMAs: 'Sure?',
-  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
+  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', cSperre: 'Do not call', gesperrt: 'Blocked', entsperren: 'unblock', delSure: 'Really delete?', delList: 'Delete list', sperrAdd: 'Block', sperrTitle: 'Do-not-call list', sperrHint: 'Companies that do not want to be called. They never show up in a new list. In a list, use “Block” in the last column.', sperrPh: 'Website or company name', legalTitle: 'Legal notes before calling', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
 };
 let lang = 'de';
 try { lang = localStorage.getItem('lang') || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en'); } catch {}
@@ -301,7 +338,7 @@ Object.assign(DE, {
   companies: 'Firmen', partial: 'Die bis dahin gefundenen Firmen stehen unten in der Excel und kommen beim nächsten Mal nicht doppelt.',
   partialDl: 'Teilliste herunterladen', cPrio: 'Prio', cStufe: 'Stufe', cFirma: 'Firma', cAP: 'Ansprechpartner', cRolle: 'Rolle',
   cTelAP: 'Telefon Ansprechpartner', cTelZ: 'Telefon Zentrale', cMail: 'E-Mail', cWeb: 'Website', cMA: 'Mitarbeiter', cMAs: 'sicher?',
-  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
+  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', cSperre: 'Nicht anrufen', gesperrt: 'Gesperrt', entsperren: 'entsperren', delSure: 'Wirklich löschen?', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
 });
 const t = k => (lang === 'en' ? EN[k] : DE[k]) ?? DE[k] ?? k;
 function applyLang() {
@@ -394,6 +431,7 @@ function setView(v) {
   $('#newView').classList.toggle('hide', v !== 'new');
   $('#listView').classList.toggle('hide', v === 'new');
   document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('cur', b.dataset.nav === v));
+  updateDel();
   if (v === 'job') { renderJob(); return; }
   $('#runCard').classList.add('hide'); $('#cancelBtn').classList.add('hide'); $('#elapsedWrap').classList.add('hide');
   if (v === 'new') return;
@@ -437,6 +475,7 @@ function renderJob() {
   (job.log || []).forEach(addLog);
   renderFirms();
   if (!running) loadLists();
+  updateDel();
 }
 
 let loginChecked = null;
@@ -521,7 +560,7 @@ function renderFirms() {
   const head = [
     ['stick s1', t('cPrio')], ['stick s2', t('cStufe')], ['stick s3', t('cFirma')], ['', c.verbund], ['', t('cAP')], ['', t('cRolle')],
     ['', t('cTelAP')], ['', t('cTelZ')], ['', t('cMail')], ['', t('cWeb')], ['', t('cMA')], ['', t('cMAs')], ['', t('cErr')],
-    ['', c.signal], ['', t('cSig')], ['', c.konkurrenz], ['', t('cEig')], ...extra.map(e => ['', e[1]]), ['', t('cHinweis')],
+    ['', c.signal], ['', t('cSig')], ['', c.konkurrenz], ['', t('cEig')], ...extra.map(e => ['', e[1]]), ['', t('cHinweis')], ['', t('cSperre')],
   ];
   $('#thead').innerHTML = '<tr>' + head.map(([k, v]) => `<th class="${k}">${esc(v)}</th>`).join('') + '</tr>';
   $('#rows').innerHTML = sicht.map(r => {
@@ -529,7 +568,7 @@ function renderFirms() {
     const isNew = !shown.has(key); shown.add(key);
     const ort = leerTd(r.bundesland) ? r.ort : `${r.ort} (${r.bundesland})`;
     const sigHoch = wort(r.signal_staerke) === 'hoch';
-    return `<tr data-k="${esc(key)}" class="s-${esc(r.stufe)} ${isNew ? 'new' : ''} ${r.prio <= 15 ? 'vorn' : ''} ${open.has(key) ? 'open' : ''}">
+    return `<tr data-k="${esc(key)}" class="s-${esc(r.stufe)} ${sperr.has(r.key) ? 'gesperrt' : ''} ${isNew ? 'new' : ''} ${r.prio <= 15 ? 'vorn' : ''} ${open.has(key) ? 'open' : ''}">
       <td class="stick s1 prio">${r.prio}</td>
       <td class="stick s2"><span class="st ${esc(r.stufe)}">${esc(r.stufe)}</span></td>
       <td class="stick s3 firm ${r.eingeschraenkt ? 'warn' : ''}">${esc(r.firma)}<span class="ort">${esc(leerTd(ort) ? '' : ort)}</span></td>
@@ -539,11 +578,20 @@ function renderFirms() {
       ${cell(r.kaufsignal, sigHoch ? 'g' : '', 300)}${cell(r.signal_staerke, sigHoch ? 'g' : '', 80)}
       ${cell(r.konkurrenz, /^ja/i.test(r.konkurrenz) ? 'r' : '', 200)}${cell(r.eignung, wort(r.eignung) === 'hoch' ? 'g' : '', 260)}
       ${extra.map(e => cell((r.extra || {})[e[0]], '', 200)).join('')}${cell(r.notiz, '', 320)}
+      <td><button class="sperr" type="button" data-sperr="${esc(r.key || '')}">${esc(sperr.has(r.key) ? t('gesperrt') : t('sperrAdd'))}</button></td>
     </tr>`;
   }).join('');
 }
-$('#rows').addEventListener('click', e => {
+$('#rows').addEventListener('click', async e => {
   if (e.target.closest('a')) return;
+  const sb = e.target.closest('[data-sperr]');
+  if (sb) {
+    const key = sb.dataset.sperr; if (!key) return;
+    const r = sperr.has(key) ? await api('/api/entsperren', { key }) : await api('/api/sperren', { eintrag: key });
+    if (r.sperrliste) setSperr(r.sperrliste);
+    renderFirms();
+    return;
+  }
   const tr = e.target.closest('tr'); if (!tr) return;
   const k = tr.dataset.k;
   open.has(k) ? open.delete(k) : open.add(k);
@@ -551,6 +599,37 @@ $('#rows').addEventListener('click', e => {
 });
 
 // ---------- frühere Listen ----------
+let sperr = new Set();
+function setSperr(liste) {
+  sperr = new Set(liste);
+  $('#sperrCount').textContent = liste.length;
+  $('#sperrListe').innerHTML = liste.map(k => `<span style="display:inline-flex;gap:6px;align-items:center;margin:0 10px 6px 0">${esc(k)} <button class="sperr" type="button" data-unsperr="${esc(k)}">${esc(t('entsperren'))}</button></span>`).join('');
+}
+async function loadSperr() { const r = await api('/api/sperrliste'); setSperr(r.sperrliste || []); }
+$('#sperrAdd').onclick = async () => {
+  const v = $('#sperrInput').value.trim(); if (!v) return;
+  const r = await api('/api/sperren', { eintrag: v });
+  if (r.sperrliste) { setSperr(r.sperrliste); $('#sperrInput').value = ''; }
+};
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-unsperr]'); if (!b) return;
+  const r = await api('/api/entsperren', { key: b.dataset.unsperr });
+  if (r.sperrliste) setSperr(r.sperrliste);
+});
+// Löschen mit zweitem Klick statt Browser-Dialog
+let delArmed = false;
+function delTarget() { return view === 'job' ? (job && job.state !== 'running' ? job.listId : null) : (view !== 'new' ? view : null); }
+function updateDel() {
+  delArmed = false;
+  $('#delBtn').textContent = t('delList');
+  $('#delBtn').classList.toggle('hide', !delTarget());
+}
+$('#delBtn').onclick = async () => {
+  const id = delTarget(); if (!id) return;
+  if (!delArmed) { delArmed = true; $('#delBtn').textContent = t('delSure'); return; }
+  const r = await api('/api/loeschen', { id });
+  if (r.ok) { if (view === 'job') job = null; await loadLists(); setView('new'); }
+};
 let savedLists = [];
 async function loadLists() {
   const r = await api('/api/lists');
@@ -612,6 +691,7 @@ $('#langBtn').addEventListener('click', themeLabel);
 
 applyLang();
 refreshStatus().then(loadLists);
+loadSperr();
 connect();
 </script>
 </body>

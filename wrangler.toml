@@ -1,0 +1,20 @@
+name = "anrufliste-teilen"
+main = "cloudflare/worker.mjs"
+compatibility_date = "2026-10-23"
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = true
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "ResearchRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ResearchRoom"]
+
+# OAuth for the MCP connector (clients, grants, token hashes)
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "71b3f7b8c86f4702b0037a91f0500017"

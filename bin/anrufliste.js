@@ -16,7 +16,7 @@ const HOME = os.homedir();
 const PKG = path.join(__dirname, '..');
 const SKILL = path.join(PKG, 'skill');
 const LISTEN_DIR = path.resolve(process.env.ANRUFLISTEN_DIR || path.join(HOME, 'Anruflisten'));
-const WORK = path.join(HOME, '.anrufliste-app');
+const WORK = path.resolve(process.env.ANRUFLISTE_STATE_DIR || path.join(HOME, '.anrufliste-app'));
 const CONFIG = path.join(WORK, 'config.json');
 const IS_WIN = process.platform === 'win32';
 const ARGS = process.argv.slice(2);
@@ -34,7 +34,8 @@ Listen landen in ${LISTEN_DIR} (änderbar mit ANRUFLISTEN_DIR).`);
 }
 if (ARGS.includes('--version') || ARGS.includes('-v')) { console.log(VERSION); process.exit(0); }
 const portArg = ARGS.indexOf('--port');
-const PORT_START = Number(portArg >= 0 ? ARGS[portArg + 1] : process.env.PORT) || 3737;
+const DESKTOP = ARGS.includes('--desktop');
+const PORT_START = DESKTOP ? 0 : Number(portArg >= 0 ? ARGS[portArg + 1] : process.env.PORT) || 3737;
 
 // ---------- Konfiguration ----------
 
@@ -129,7 +130,7 @@ function runPlain(cmd, args, timeout = 15000, extraEnv = {}) {
   return collect(p, timeout);
 }
 async function findPython() {
-  for (const c of IS_WIN ? ['py', 'python', 'python3'] : ['python3', 'python']) {
+  for (const c of process.env.ANRUFLISTE_PYTHON ? [process.env.ANRUFLISTE_PYTHON] : IS_WIN ? ['py', 'python', 'python3'] : ['python3', 'python']) {
     const r = await runPlain(c, ['--version'], 8000);
     if (r.code === 0 && /Python 3/.test(r.out + r.err)) { pythonCmd = c; return true; }
   }
@@ -249,13 +250,14 @@ function readFirms(dir, useCache = false) {
       if (r.konkurrenz === STRICH) r.konkurrenz = 'k. A.';
       const ex = r0.extra && typeof r0.extra === 'object' ? r0.extra : {};
       r.extra = Object.fromEntries(Object.entries(ex).map(([k, v]) => [k, leer(v)]));
-      const key = domain(r.website) || r.firma.toLowerCase().replace(/\W/g, '');
+      const key = domain(r.website) || r.firma.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
       if (ausschluss.has(key) || seen.has(key)) continue;
       seen.add(key);
       const n = maZahl(r.mitarbeiter), min = auftrag.min_mitarbeiter;
       r.stufe = min && n !== null && n < min ? 'C' : r.ansprechpartner !== STRICH ? (r.tel_ansprechpartner !== STRICH ? 'A' : 'B') : 'C';
       r.eingeschraenkt = eingeschraenkt(r.erreichbarkeit);
       r.teil = f.replace(/\.json$/, '');
+      r.key = key;
       rows.push(r);
     }
   }
@@ -270,6 +272,54 @@ function findExcel(dir) {
     const x = fs.readdirSync(dir).filter(f => f.endsWith('.xlsx') && !f.startsWith('~$'));
     return x.length ? path.join(dir, x.sort().pop()) : null;
   } catch { return null; }
+}
+
+// ---------- Sperrliste und Aufbewahrung ----------
+
+// Gesperrte Firmen (Widerspruch, „nicht mehr anrufen“): eine Domain bzw. ein Firmenschlüssel pro Zeile.
+// Liegt in alt/, damit build.py sie beim Ausschluss automatisch mitliest. Bleibt auch nach dem Löschen von Listen bestehen.
+const SPERRLISTE = path.join(LISTEN_DIR, 'alt', 'sperrliste.txt');
+const AUFBEWAHRUNG_TAGE = 183; // Listen werden nach 6 Monaten gelöscht
+
+function sperrKey(v) {
+  const t = String(v || '').trim();
+  return domain(t) || t.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
+}
+function readSperrliste() {
+  try { return fs.readFileSync(SPERRLISTE, 'utf8').split(/\r?\n/).map(x => x.trim()).filter(Boolean); } catch { return []; }
+}
+function sperren(eintrag) {
+  const key = sperrKey(eintrag);
+  if (!key) return false;
+  const liste = readSperrliste();
+  if (!liste.includes(key)) {
+    fs.mkdirSync(path.dirname(SPERRLISTE), { recursive: true });
+    fs.writeFileSync(SPERRLISTE, [...liste, key].join('\n') + '\n');
+  }
+  return key;
+}
+function entsperren(key) {
+  const liste = readSperrliste().filter(x => x !== key);
+  fs.writeFileSync(SPERRLISTE, liste.join('\n') + (liste.length ? '\n' : ''));
+}
+
+function listDate(id) {
+  const m = id.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return new Date(m[1] + 'T00:00:00').getTime();
+  try { return fs.statSync(path.join(LISTEN_DIR, id)).mtimeMs; } catch { return Date.now(); }
+}
+function deleteList(id) {
+  if (!listDirs().includes(id)) return false;
+  if (job && job.state === 'running' && job.dir && path.basename(job.dir) === id) return false;
+  fs.rmSync(path.join(LISTEN_DIR, id), { recursive: true, force: true });
+  return true;
+}
+// Datenminimierung: Listen älter als 6 Monate endgültig löschen (die Sperrliste bleibt)
+function aufraeumen() {
+  const grenze = Date.now() - AUFBEWAHRUNG_TAGE * 86400000;
+  for (const id of listDirs()) {
+    if (listDate(id) < grenze && deleteList(id)) console.log(`  Liste nach 6 Monaten gelöscht: ${id}`);
+  }
 }
 
 function listDirs() {
@@ -624,6 +674,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && p === '/api/status') return json(res, 200, await status(url.searchParams.has('fresh')));
     if (req.method === 'GET' && p === '/api/lists') return json(res, 200, { lists: lists() });
+    if (req.method === 'GET' && p === '/api/sperrliste') return json(res, 200, { sperrliste: readSperrliste() });
     if (req.method === 'GET' && p === '/api/list') {
       const id = url.searchParams.get('id');
       if (!id || !listDirs().includes(id)) return json(res, 404, { error: 'not found' });
@@ -661,6 +712,21 @@ const server = http.createServer(async (req, res) => {
       return json(res, r && r.error ? 409 : 200, r || { ok: true });
     }
     if (req.method === 'POST' && p === '/api/cancel') return json(res, 200, { ok: cancelJob() });
+    if (req.method === 'POST' && p === '/api/sperren') {
+      const b = await body(req);
+      const key = sperren(clean(b.eintrag, 300));
+      return json(res, key ? 200 : 400, key ? { ok: true, key, sperrliste: readSperrliste() } : { error: 'leer' });
+    }
+    if (req.method === 'POST' && p === '/api/entsperren') {
+      const b = await body(req);
+      entsperren(clean(b.key, 300));
+      return json(res, 200, { ok: true, sperrliste: readSperrliste() });
+    }
+    if (req.method === 'POST' && p === '/api/loeschen') {
+      const b = await body(req);
+      const ok = deleteList(clean(b.id, 300));
+      return json(res, ok ? 200 : 400, ok ? { ok: true } : { error: 'nicht möglich' });
+    }
     if (req.method === 'POST' && p === '/api/login') return json(res, 200, startLogin());
     if (req.method === 'POST' && p === '/api/apikey') {
       const b = await body(req);
@@ -690,13 +756,15 @@ function openBrowser(u) {
 // Port belegt: den nächsten nehmen. Nur ein 'listening'-Handler, sonst melden sich alte Versuche mit falschem Port.
 let tries = 0;
 server.on('error', e => {
-  if (e.code === 'EADDRINUSE' && tries++ < 20) return server.listen(++PORT, '127.0.0.1');
+  if (!DESKTOP && e.code === 'EADDRINUSE' && tries++ < 20) return server.listen(++PORT, '127.0.0.1');
   console.error('Server startet nicht:', e.message);
   process.exit(1);
 });
 server.once('listening', () => {
+  PORT = server.address().port;
   const u = `http://localhost:${PORT}`;
   console.log(`\n  Anrufliste läuft: ${u}\n  Listen: ${LISTEN_DIR}\n  Beenden: Ctrl+C\n`);
+  if (DESKTOP) console.log('ANRUFLISTE_READY=' + u);
   if (!ARGS.includes('--no-open')) openBrowser(u);
 });
 function listen(port) {
@@ -720,4 +788,6 @@ process.on('exit', () => {
 });
 
 fs.mkdirSync(path.join(LISTEN_DIR, 'alt'), { recursive: true });
+aufraeumen();
+setInterval(aufraeumen, 12 * 3600 * 1000).unref();
 listen(PORT_START);

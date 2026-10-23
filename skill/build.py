@@ -12,7 +12,7 @@ import datetime, glob, json, os, re, subprocess, sys
 try:
     from openpyxl import Workbook, load_workbook
 except ImportError:
-    venv = os.path.expanduser("~/.cache/anrufliste-venv")
+    venv = os.path.expanduser(os.environ.get("ANRUFLISTE_VENV", "~/.cache/anrufliste-venv"))
     py = os.path.join(venv, "Scripts", "python.exe") if os.name == "nt" else os.path.join(venv, "bin", "python3")
     if os.path.realpath(sys.executable) == os.path.realpath(py):
         sys.exit(f"openpyxl ließ sich nicht installieren (Ordner {venv} löschen und erneut versuchen)")
@@ -353,6 +353,8 @@ def excel(ordner):
         ("Status", "Nach jedem Anruf auswählen: Termin; Rückruf vereinbart (Zeit in Notiz); Chef nicht erreicht (Durchwahl/andere Uhrzeit versuchen); kein Bedarf (6 Mon.) = später nochmal; gesperrt = nie wieder anrufen."),
         ("Strich", "– = Angabe nicht auffindbar"),
         ("Dubletten", "Firmen aus früheren Listen in ~/Anruflisten (und aus ~/Anruflisten/alt) sind herausgefiltert."),
+        ("Sperrliste", "Status \"gesperrt\" oder Widerspruch: die Firma in der App über \"Sperren\" auf die Sperrliste setzen, dann kommt sie in keiner neuen Liste mehr vor."),
+        ("Rechtliches", "Du bist verantwortlich (kein Rechtsrat). Telefonwerbung bei Firmen nur mit mutmaßlicher Einwilligung (§ 7 UWG): offene Stelle oder Branche allein reichen meist nicht, besser mit konkretem Anlass anrufen. Keine Werbe-E-Mails ohne Einwilligung. Beim ersten Kontakt sagen, woher die Daten stammen, und auf das Widerspruchsrecht hinweisen (Art. 14, 21 DSGVO). Listen werden in der App nach 6 Monaten gelöscht."),
     ]
     for i, (a, b) in enumerate(legende, 1):
         lg.cell(i, 1, a).alignment = WRAP
