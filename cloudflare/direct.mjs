@@ -14,6 +14,17 @@ export const WEB_SEARCH_USD=10/1000;
 // Rough estimate per company (USD), see README "Kosten": tokens incl. cache reads + ~2 searches.
 export const ESTIMATE_PER_FIRM_USD={'claude-opus-5-5':[0.15,0.3],'claude-sonnet-5-5':[0.08,0.15]};
 export function estimate(model,count){const [lo,hi]=ESTIMATE_PER_FIRM_USD[model]||ESTIMATE_PER_FIRM_USD[DEFAULT_MODEL];return [Math.max(0.5,lo*count),Math.max(1,hi*count)]}
+// Hard cost cap per run (USD, list prices): 0.50 $ per requested company, at least 2.50 $.
+// Shown before the start; when reached, all agents stop and the companies found so far are kept.
+export const BUDGET_PER_FIRM_USD=0.5;
+export function budgetFor(count){return Math.max(2.5,BUDGET_PER_FIRM_USD*(Number(count)||0))}
+// Limits that keep a single agent's context and spend small.
+export const MAX_AGENT_TURNS=30;
+export const WEB_FETCH_MAX_CONTENT_TOKENS=20000;
+// Server-side tool result clearing: the history we send stays append-only (preserved thinking),
+// the API drops old search/fetch results once the prompt grows past the trigger.
+export const CONTEXT_MANAGEMENT={edits:[{type:'clear_tool_uses_20250919',trigger:{type:'input_tokens',value:60000},keep:{type:'tool_uses',value:4},clear_at_least:{type:'input_tokens',value:15000},exclude_tools:['save_companies']}]};
+const CONTEXT_BETA='context-management-2025-06-27';
 
 const BETAS=['server-side-fallback-2026-07-01'];
 const MAX_TOKENS=32000;
@@ -29,7 +40,7 @@ const firmSchema={type:'object',additionalProperties:false,required:[...FIRM_FIE
 }};
 export const SAVE_TOOL={name:'save_companies',description:'Speichert 1 bis 5 vollständig recherchierte, öffentlich belegte Firmen in der Anrufliste des Nutzers. Nach je 3 bis 5 Firmen aufrufen. Unbekannte Werte: "–". website ist die vollständige URL (https://…). Doppelte Firmen und Firmen auf der Sperrliste werden abgewiesen.',strict:true,eager_input_streaming:true,input_schema:{type:'object',additionalProperties:false,required:['companies'],properties:{companies:{type:'array',items:firmSchema}}}};
 export const FINISH_TOOL={name:'finish_research',description:'Schließt den Auftrag ab: Zusammenfassung und angebotsbezogener Gesprächsleitfaden mit genau sieben Abschnitten.',strict:true,eager_input_streaming:true,input_schema:{type:'object',additionalProperties:false,required:['summary','guide'],properties:{summary:{type:'string'},guide:{type:'object',additionalProperties:false,required:GUIDE_KEYS,properties:Object.fromEntries(GUIDE_KEYS.map(k=>[k,{type:'string'}]))}}}};
-const webTools=()=>[{type:'web_search_20260209',name:'web_search',max_uses:8},{type:'web_fetch_20260209',name:'web_fetch',max_uses:12}];
+const webTools=()=>[{type:'web_search_20260209',name:'web_search',max_uses:8},{type:'web_fetch_20260209',name:'web_fetch',max_uses:12,max_content_tokens:WEB_FETCH_MAX_CONTENT_TOKENS}];
 export const PLAN_SCHEMA={type:'object',additionalProperties:false,required:['signal_name','signal_definition','verbund_name','verbund_definition','konkurrenz_name','konkurrenz_definition','extra_felder','teilgebiete'],properties:{
  signal_name:{type:'string'},signal_definition:{type:'string'},verbund_name:{type:'string'},verbund_definition:{type:'string'},konkurrenz_name:{type:'string'},konkurrenz_definition:{type:'string'},
  extra_felder:{type:'array',items:{type:'object',additionalProperties:false,required:['schluessel','bedeutung'],properties:{schluessel:{type:'string'},bedeutung:{type:'string'}}}},
@@ -64,7 +75,8 @@ export function toolInput(block){
 
 // ---------- Costs ----------
 export class CostMeter{
- constructor(model){this.model=model;this.usd=0;this.input=0;this.output=0;this.cacheRead=0;this.cacheWrite=0;this.searches=0;this.fetches=0}
+ constructor(model,budget=Infinity){this.model=model;this.budget=budget;this.usd=0;this.input=0;this.output=0;this.cacheRead=0;this.cacheWrite=0;this.searches=0;this.fetches=0}
+ exceeded(){return this.usd>=this.budget}
  add(usage,requestModel=this.model){
   if(!usage)return;
   const price=m=>MODELS[m]||FALLBACK_PRICES[m]||MODELS[requestModel]||MODELS[this.model];
@@ -78,15 +90,22 @@ export class CostMeter{
   this.searches+=s.web_search_requests||0;this.fetches+=s.web_fetch_requests||0;
   this.usd+=(s.web_search_requests||0)*WEB_SEARCH_USD;
  }
- summary(){return {usd:this.usd,input:this.input,output:this.output,cacheRead:this.cacheRead,cacheWrite:this.cacheWrite,searches:this.searches,fetches:this.fetches}}
+ summary(){return {usd:this.usd,budget:Number.isFinite(this.budget)?this.budget:null,input:this.input,output:this.output,cacheRead:this.cacheRead,cacheWrite:this.cacheWrite,searches:this.searches,fetches:this.fetches}}
 }
 
 // ---------- Errors ----------
 export class RefusalError extends Error{constructor(details){super('Claude hat die Anfrage abgelehnt'+(details?.category?` (${details.category})`:'')+'.');this.name='RefusalError';this.details=details}}
 export class AbortedError extends Error{constructor(){super('Abgebrochen.');this.name='AbortedError'}}
+export class BudgetError extends Error{constructor(usd,budget){super(`Kostenobergrenze erreicht: ca. ${usd.toFixed(2)} $ von höchstens ${budget.toFixed(2)} $. Die Recherche wurde gestoppt; bis dahin gefundene Firmen bleiben in der Liste.`);this.name='BudgetError';this.usd=usd;this.budget=budget}}
+// The job was finished, cancelled or is gone (server answered 401/403/404/409): every agent stops.
+export class JobClosedError extends Error{constructor(message){super(message||'Auftrag beendet oder abgebrochen.');this.name='JobClosedError'}}
+const FATAL_STATUS=[401,403,404,409];
+export const isClosed=e=>FATAL_STATUS.includes(e?.status)||e?.closed===true;
 // Typed mapping for the UI; never string matching.
 export function describeError(e){
  if(e instanceof AbortedError||e instanceof Anthropic.APIUserAbortError)return {code:'aborted',message:'Recherche abgebrochen.'};
+ if(e instanceof BudgetError)return {code:'budget',message:e.message};
+ if(e instanceof JobClosedError)return {code:'closed',message:'Recherche beendet: '+e.message};
  if(e instanceof RefusalError)return {code:'refusal',message:e.message+' Bitte Auftrag umformulieren.'};
  if(e instanceof Anthropic.AuthenticationError)return {code:'auth',message:'API-Schlüssel ungültig. Bitte prüfen oder neu eintragen.'};
  if(e instanceof Anthropic.PermissionDeniedError)return {code:'permission',message:'Der API-Schlüssel hat keine Berechtigung für dieses Modell oder die Websuche (Einstellungen im Anthropic-Konto prüfen).'};
@@ -103,20 +122,32 @@ const sleep=(ms,signal)=>new Promise((resolve,reject)=>{const t=setTimeout(resol
 
 // One streamed request. Retries rate limits with backoff (on top of the SDK's own retries)
 // and re-issues the request when the SDK could not parse a streamed tool input at all.
+function checkBudget(ctx){if(ctx.meter.exceeded())throw new BudgetError(ctx.meter.usd,ctx.meter.budget)}
 export async function streamOnce(ctx,params){
  let rate=0,json=0;
  while(true){
   if(ctx.signal?.aborted)throw new AbortedError();
+  checkBudget(ctx);
+  let stream;
+  // Context editing only for agent loops with tools, and only as long as the API accepts it (see below).
+  const cm=params.tools&&ctx.contextManagement?.enabled;
   try{
    const {output_config,...rest}=params;
    // Opus/Sonnet 5.5: adaptive thinking only, effort explicit, no sampling parameters, tool_choice stays auto.
-   const stream=ctx.client.beta.messages.stream({betas:BETAS,fallbacks:'default',model:ctx.model,max_tokens:MAX_TOKENS,thinking:{type:'adaptive'},cache_control:{type:'ephemeral'},...rest,output_config:{effort:'medium',...(output_config||{})}},{signal:ctx.signal});
+   stream=ctx.client.beta.messages.stream({betas:cm?[...BETAS,CONTEXT_BETA]:BETAS,fallbacks:'default',model:ctx.model,max_tokens:MAX_TOKENS,thinking:{type:'adaptive'},cache_control:{type:'ephemeral'},...(cm?{context_management:CONTEXT_MANAGEMENT}:{}),...rest,output_config:{effort:'medium',...(output_config||{})}},{signal:ctx.signal});
    stream.on?.('contentBlock',b=>progress(ctx,b));
    const message=await stream.finalMessage();
    ctx.meter.add(message.usage,ctx.model);ctx.onCost?.(ctx.meter.summary());
+   checkBudget(ctx);
    return message;
   }catch(e){
+   if(e instanceof BudgetError)throw e;
+   // Tokens of an interrupted or re-issued request are billed too: count what the stream reported so far.
+   const partial=stream?.currentMessage?.usage;
+   if(partial){ctx.meter.add(partial,ctx.model);ctx.onCost?.(ctx.meter.summary())}
    if(e instanceof Anthropic.APIUserAbortError||ctx.signal?.aborted)throw new AbortedError();
+   // If the API rejects context editing in this combination, continue the run once without it.
+   if(cm&&e instanceof Anthropic.BadRequestError){ctx.contextManagement.enabled=false;ctx.log?.('warn','Kontextverwaltung vom API abgelehnt, weiter ohne.');continue}
    if(e instanceof Anthropic.RateLimitError&&rate<3){
     rate++;const after=Number(e.headers?.get?.('retry-after'))||20*rate;
     ctx.log?.('warn',`Ratenlimit erreicht, warte ${Math.round(after)} s …`);
@@ -137,18 +168,34 @@ function progress(ctx,b){
 
 // Blocks after the last fallback marker are from the model that served the turn.
 function servedBlocks(content){const i=content.map(b=>b.type).lastIndexOf('fallback');return i<0?content:content.slice(i+1)}
+// History echo after a mid-output fallback (API docs, "Echoing fallback turns back"): before the last
+// fallback block keep only text blocks and paired server-tool blocks (server_tool_use + its *_tool_result);
+// drop thinking, redacted_thinking, tool_use, unpaired server_tool_use and unknown block types.
+// The fallback block itself and everything after it stay unchanged.
+export function echoContent(content){
+ const i=content.map(b=>b.type).lastIndexOf('fallback');
+ if(i<0)return content;
+ const before=content.slice(0,i);
+ const isResult=b=>typeof b.type==='string'&&b.type.endsWith('_tool_result')&&b.type!=='tool_result'&&b.tool_use_id;
+ const resultIds=new Set(before.filter(isResult).map(b=>b.tool_use_id));
+ const keptUses=new Set(before.filter(b=>b.type==='server_tool_use'&&resultIds.has(b.id)).map(b=>b.id));
+ const kept=before.filter(b=>b.type==='text'||(b.type==='server_tool_use'&&keptUses.has(b.id))||(isResult(b)&&keptUses.has(b.tool_use_id)));
+ return [...kept,...content.slice(i)];
+}
 
 // Generic agent loop with client tools. history is append-only: every response.content is
 // pushed unchanged; all tool_results of one response go back in ONE user message.
-export async function agentLoop(ctx,{system,prompt,tools,handlers,maxTurns=40,shouldStop}){
+export async function agentLoop(ctx,{system,prompt,tools,handlers,maxTurns=MAX_AGENT_TURNS,shouldStop}){
  const messages=[{role:'user',content:prompt}];
  let last=null;
- for(let turn=0;turn<maxTurns;turn++){
+ for(let turn=0;turn<Math.min(maxTurns,MAX_AGENT_TURNS);turn++){
+  // Stop before spending another request when the goal was reached by another agent meanwhile.
+  if(last&&shouldStop?.())return {message:last,messages,text:finalText(last),stopped:true};
   const message=await streamOnce(ctx,{system,messages,tools});
   last=message;
-  messages.push({role:'assistant',content:message.content});
+  messages.push({role:'assistant',content:echoContent(message.content)});
   if(message.stop_reason==='refusal')throw new RefusalError(message.stop_details);
-  if(message.stop_reason==='pause_turn')continue;
+  if(message.stop_reason==='pause_turn'){if(shouldStop?.())return {message,messages,text:finalText(message),stopped:true};continue}
   const uses=servedBlocks(message.content).filter(b=>b.type==='tool_use');
   if(!uses.length){
    if(message.stop_reason==='max_tokens'){messages.push({role:'user',content:'Bitte fortfahren.'});continue}
@@ -163,7 +210,7 @@ export async function agentLoop(ctx,{system,prompt,tools,handlers,maxTurns=40,sh
    const error=!tool||!handler?`Unbekanntes Werkzeug ${use.name}`:validate(tool.input_schema,parsed.input);
    if(error){results.push({type:'tool_result',tool_use_id:use.id,is_error:true,content:'Ungültige Eingabe: '+error});continue}
    try{results.push({type:'tool_result',tool_use_id:use.id,content:JSON.stringify(await handler(parsed.input))})}
-   catch(e){if(e instanceof AbortedError)throw e;results.push({type:'tool_result',tool_use_id:use.id,is_error:true,content:String(e.message||e).slice(0,1000)})}
+   catch(e){if(e instanceof AbortedError||e instanceof JobClosedError||e instanceof BudgetError)throw e;results.push({type:'tool_result',tool_use_id:use.id,is_error:true,content:String(e.message||e).slice(0,1000)})}
   }
   messages.push({role:'user',content:results});
   if(shouldStop?.())return {message,messages,text:finalText(message),stopped:true};
@@ -290,64 +337,96 @@ export function toServerFirm(c){
 }
 
 // ---------- Whole research run ----------
-// deps: {client, model, server:{brief(id),save(id,companies),finish(id,summary,guide),list(id)}, log(kind,text), onCost(summary), onPhase(phase), signal}
+// deps: {client, model, server:{brief(id),save(id,companies),finish(id,summary,guide),list(id)}, log(kind,text), onCost(summary), onPhase(phase), signal, budgetUsd?}
+// Server errors carry .status; 401/403/404/409 mean the job is closed or gone and stop every agent.
+async function serverCall(fn){try{return await fn()}catch(e){if(isClosed(e))throw new JobClosedError(e.message);throw e}}
 export async function runResearch(jobId,deps){
- const meter=new CostMeter(deps.model);
- // One fatal error (e.g. invalid key) stops all parallel agents.
- const inner=new AbortController();
- if(deps.signal?.aborted)inner.abort();else deps.signal?.addEventListener('abort',()=>inner.abort(),{once:true});
- const base={client:deps.client,model:deps.model,meter,signal:inner.signal,log:deps.log,onCost:deps.onCost};
  const log=(k,t)=>deps.log?.(k,t);
  deps.onPhase?.('prepare');
- const b=await deps.server.brief(jobId);
+ const b=await serverCall(()=>deps.server.brief(jobId));
  const target=b.auftrag.anzahl;let total=b.bereits_gespeichert||0;
+ const meter=new CostMeter(deps.model,deps.budgetUsd??budgetFor(target));
+ // One fatal error (invalid key, budget, job closed) stops all parallel agents.
+ const inner=new AbortController();
+ if(deps.signal?.aborted)inner.abort();else deps.signal?.addEventListener('abort',()=>inner.abort(),{once:true});
+ const base={client:deps.client,model:deps.model,meter,signal:inner.signal,log:deps.log,onCost:deps.onCost,contextManagement:{enabled:deps.contextManagement!==false}};
  b.offen=Math.max(1,target-total);
- log('info','Plane Teilgebiete …');
- const plan=await makePlan({...base,label:'Planung'},b);
- log('info','Teilgebiete: '+plan.teilgebiete.map(a=>`${a.name} (${a.anzahl})`).join(', '));
- deps.onPhase?.('research');
- const notes=[];
- const runArea=async area=>{
+ const notes=[],controllers=new Set();let firstError=null;
+ const goalReached=()=>total>=target;
+ const runArea=async(area,brief)=>{
   let mine=0;
-  const ctx={...base,label:area.name};
+  // Each agent has its own controller: it stops with the whole run, or as soon as the overall goal is reached.
+  const ctl=new AbortController(),follow=()=>ctl.abort();
+  if(inner.signal.aborted)ctl.abort();else inner.signal.addEventListener('abort',follow,{once:true});
+  controllers.add(ctl);
+  const ctx={...base,signal:ctl.signal,label:area.name};
   const save=async input=>{
    const valid=[],rejected=[];
    for(const c of input.companies.slice(0,20)){const r=toServerFirm(c);if(r.error)rejected.push(r.error);else valid.push(r.firm)}
    let result={saved:0,total,target};
    if(valid.length){
     log('sub',`${area.name}: Speichert ${valid.length} Firma${valid.length===1?'':'en'} …`);
-    result=await deps.server.save(jobId,valid);
-    total=result.total;mine+=result.saved;
+    result=await serverCall(()=>deps.server.save(jobId,valid));
+    total=Math.max(total,result.total||0);mine+=result.saved||0;
+    // Overall goal reached: the other agents stop right away (even mid-request).
+    if(goalReached())for(const c of controllers)if(c!==ctl)c.abort();
    }
    const out={...result,von_dir_gespeichert:mine,dein_soll:area.anzahl};
    if(rejected.length)out.nicht_gespeichert=rejected;
-   out.hinweis=total>=target?'Gesamtziel erreicht. Beende jetzt mit einer kurzen Rückmeldung, keine weiteren Werkzeuge.':mine>=area.anzahl?'Dein Soll ist erreicht. Beende jetzt mit einer kurzen Rückmeldung.':`Weiter recherchieren, noch ${area.anzahl-mine} Firmen.`;
+   const next=goalReached()?'Gesamtziel erreicht. Beende jetzt mit einer kurzen Rückmeldung, keine weiteren Werkzeuge.':mine>=area.anzahl?'Dein Soll ist erreicht. Beende jetzt mit einer kurzen Rückmeldung.':`Weiter recherchieren, noch ${area.anzahl-mine} Firmen.`;
+   out.hinweis=result.hinweis?result.hinweis+' '+next:next;
    return out;
   };
   let r;
-  try{r=await agentLoop(ctx,{system:agentSystem(b,plan,area),prompt:`Recherchiere jetzt ${area.anzahl} Firmen in ${area.name} und speichere sie mit save_companies.`,tools:[...webTools(),SAVE_TOOL],handlers:{save_companies:save},maxTurns:Math.max(20,area.anzahl*4),shouldStop:()=>total>=target||mine>=area.anzahl})}
+  try{r=await agentLoop(ctx,{system:agentSystem(brief,plan,area),prompt:`Recherchiere jetzt ${area.anzahl} Firmen in ${area.name} und speichere sie mit save_companies.`,tools:[...webTools(),SAVE_TOOL],handlers:{save_companies:save},maxTurns:Math.min(MAX_AGENT_TURNS,Math.max(12,area.anzahl*3)),shouldStop:()=>goalReached()||mine>=area.anzahl})}
   catch(e){
-   // A refusal only ends this sub-area; everything else is fatal for the whole run.
+   if(e instanceof AbortedError&&!inner.signal.aborted&&goalReached()){notes.push(`${area.name}: ${mine} gespeichert, Gesamtziel erreicht.`);return}
+   // A refusal or a rejected request (e.g. context limit) only ends this sub-area; everything else is fatal.
    if(e instanceof RefusalError){log('warn',`${area.name}: ${e.message} Teilgebiet übersprungen.`);notes.push(`${area.name}: abgelehnt, ${mine} gespeichert.`);return}
+   if(e instanceof Anthropic.BadRequestError){log('warn',`${area.name}: Anfrage abgelehnt (${String(e.message).slice(0,200)}). Teilgebiet beendet.`);notes.push(`${area.name}: Anfrage abgelehnt, ${mine} gespeichert.`);return}
+   if(!firstError&&!(e instanceof AbortedError))firstError=e;
    inner.abort();throw e;
-  }
+  }finally{controllers.delete(ctl);inner.signal.removeEventListener('abort',follow)}
   notes.push(`${area.name}: ${mine} gespeichert. ${r.text||''}`);
   log('text',`${area.name}: fertig (${mine} Firmen).`);
  };
- await Promise.all(plan.teilgebiete.map(runArea));
- // One top-up pass when clearly short (like step 4 of the local skill).
- const missing=target-total;
- if(missing>0&&missing>=Math.max(2,Math.round(target*0.2))&&!inner.signal.aborted){
-  log('info',`Noch ${missing} Firmen offen, eine weitere Suche im ganzen Gebiet …`);
-  await runArea({name:'Rest im gesamten Gebiet ('+b.auftrag.region+')',anzahl:missing});
+ // Waits for all agents, then rethrows the error that stopped the run (not the follow-up aborts).
+ const all=async jobs=>{await Promise.allSettled(jobs);if(firstError)throw firstError;if(inner.signal.aborted)throw new AbortedError()};
+ let plan,budgetHit=null;
+ try{
+  log('info','Plane Teilgebiete …');
+  plan=await makePlan({...base,label:'Planung'},b);
+  log('info','Teilgebiete: '+plan.teilgebiete.map(a=>`${a.name} (${a.anzahl})`).join(', '));
+  deps.onPhase?.('research');
+  await all(plan.teilgebiete.map(a=>runArea(a,b)));
+  // One top-up pass when clearly short (like step 4 of the local skill), with the current exclusion list.
+  const missing=target-total;
+  if(missing>0&&missing>=Math.max(2,Math.round(target*0.2))){
+   log('info',`Noch ${missing} Firmen offen, eine weitere Suche im ganzen Gebiet …`);
+   const fresh=await serverCall(()=>deps.server.brief(jobId));
+   total=Math.max(total,fresh.bereits_gespeichert||0);
+   await all([runArea({name:'Rest im gesamten Gebiet ('+b.auftrag.region+')',anzahl:Math.max(1,target-total)},fresh)]);
+  }
+ }catch(e){
+  if(!(e instanceof BudgetError))throw e;
+  budgetHit=e;log('warn',e.message);
  }
  deps.onPhase?.('excel');
+ if(budgetHit){
+  // Close the list without another paid request; the companies found so far stay.
+  notes.push(budgetHit.message);
+  await serverCall(()=>deps.server.finish(jobId,notes.join('\n'),{}));
+  throw budgetHit;
+ }
  log('info','Schreibt Zusammenfassung und Gesprächsleitfaden …');
  const list=await deps.server.list(jobId).catch(()=>({firms:[]}));
  let finished=false;
- const finish=async input=>{const r=await deps.server.finish(jobId,input.summary,input.guide);finished=true;return r};
+ const finish=async input=>{const r=await serverCall(()=>deps.server.finish(jobId,input.summary,input.guide));finished=true;return r};
  try{await agentLoop({...base,label:'Abschluss'},{system:RULES,prompt:finishPrompt(b,plan,list.firms||[],notes),tools:[FINISH_TOOL],handlers:{finish_research:finish},maxTurns:3,shouldStop:()=>finished})}
- catch(e){if(!(e instanceof RefusalError))throw e;log('warn','Abschluss: '+e.message)}
- if(!finished)await deps.server.finish(jobId,notes.join('\n'),{});
+ catch(e){
+  if(e instanceof BudgetError){notes.push(e.message);if(!finished)await serverCall(()=>deps.server.finish(jobId,notes.join('\n'),{}));throw e}
+  if(!(e instanceof RefusalError))throw e;log('warn','Abschluss: '+e.message);
+ }
+ if(!finished)await serverCall(()=>deps.server.finish(jobId,notes.join('\n'),{}));
  return {total,cost:meter.summary()};
 }

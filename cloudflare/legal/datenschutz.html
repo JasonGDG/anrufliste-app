@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark light">
-<script>try{const m=localStorage.getItem("theme");if(m==="light"||m==="dark")document.documentElement.dataset.theme=m}catch{}</script>
+<script src="/theme.js"></script>
 <title>Datenschutz · Anrufliste</title>
 <link rel="stylesheet" href="/legal.css">
 </head>
@@ -14,7 +14,7 @@
 <h1>Datenschutzerklärung</h1>
 <p class="stand">Stand: 23.10.2026</p>
 
-<p>Diese Erklärung beschreibt, welche personenbezogenen Daten bei der Nutzung der Website „Anrufliste“ (Browser-Version) verarbeitet werden. Die Anrufliste ist ein passwortgeschütztes Werkzeug: Nutzer erstellen hier Rechercheaufträge, lassen passende Firmen von ihrem eigenen KI-Konto (Claude von Anthropic oder ChatGPT von OpenAI) oder direkt im Browser mit ihrem eigenen Anthropic-API-Schlüssel recherchieren und erhalten das Ergebnis als Tabelle und Excel-Datei.</p>
+<p>Diese Erklärung beschreibt, welche personenbezogenen Daten bei der Nutzung der Website „Anrufliste“ (Browser-Version) verarbeitet werden. Die Anrufliste ist ein passwortgeschütztes Werkzeug: Nutzer erstellen hier Rechercheaufträge, lassen passende Firmen von ihrem eigenen Claude-Konto (Anthropic) über einen Connector oder direkt im Browser mit ihrem eigenen Anthropic-API-Schlüssel recherchieren und erhalten das Ergebnis als Tabelle und Excel-Datei.</p>
 
 <h2>1. Verantwortlicher</h2>
 <div class="card">
@@ -31,26 +31,28 @@
 
 <h2>4. Cookies und lokaler Speicher</h2>
 <p>Wir setzen ein einziges dauerhaftes Cookie: <code>__Host-anrufliste_session</code>. Es enthält eine zufällige Kennung, die deinen Browser seinem eigenen Speicherbereich zuordnet, damit nur du deine Listen siehst. Es ist nur über HTTPS lesbar, für Skripte nicht zugänglich und gilt 1 Jahr. Während du dein KI-Konto verbindest, setzen wir zusätzlich kurzlebige Cookies (<code>__Host-oauth-consent-…</code>, höchstens 10 Minuten), die den Bestätigungsschritt gegen Missbrauch absichern.</p>
-<p>Im lokalen Speicher deines Browsers merken wir uns Sprache, Farbschema, den gewählten KI-Anbieter und das gewählte Modell. Wenn du „Direkt hier (eigener API-Schlüssel)“ nutzt, liegt dort außerdem dein Anthropic-API-Schlüssel (siehe Abschnitt 8). Diese Angaben werden nicht an diese Website übertragen; du kannst den Schlüssel jederzeit mit „Schlüssel löschen“ entfernen.</p>
+<p>Im lokalen Speicher deines Browsers merken wir uns Sprache, Farbschema, den gewählten Rechercheweg und das gewählte Modell. Wenn du „Direkt hier (eigener API-Schlüssel)“ nutzt, liegt dort außerdem dein Anthropic-API-Schlüssel (siehe Abschnitt 8) und, solange eine Recherche läuft, die Kennung dieses Auftrags (<code>direct-job</code>), damit nach einem Neuladen der Seite eine unterbrochene Recherche erkannt wird; sie wird am Ende der Recherche gelöscht. Diese Angaben werden nicht an diese Website übertragen; du kannst den Schlüssel jederzeit mit „Schlüssel löschen“ entfernen.</p>
 <p>Diese Speicherungen sind für den von dir gewünschten Dienst unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Eine Einwilligung und ein Cookie-Banner sind dafür nicht nötig. Wir verwenden <b>kein Tracking, keine Analyse-Tools, keine Werbe-Cookies</b> und binden keine Inhalte Dritter ein; auch die Schriftart wird von dieser Website selbst ausgeliefert.</p>
 
 <h2>5. Gespeicherte Inhalte</h2>
 <p>Im Speicherbereich deines Browsers speichern wir:</p>
 <ul>
 <li>deine Aufträge (Angebot, Zielgruppe, Region, Größe, Anzahl, weitere Wünsche),</li>
-<li>die Listen mit den gefundenen Firmen einschließlich <b>geschäftlicher Kontaktdaten Dritter</b> (zum Beispiel Name und Rolle von Ansprechpartnern, geschäftliche Telefonnummern und E-Mail-Adressen, Quellen-Links), die du mit deinem eigenen Claude oder ChatGPT recherchierst,</li>
+<li>die Listen mit den gefundenen Firmen einschließlich <b>geschäftlicher Kontaktdaten Dritter</b> (zum Beispiel Name und Rolle von Ansprechpartnern, geschäftliche Telefonnummern und E-Mail-Adressen, Quellen-Links), die du mit deinem eigenen Claude recherchierst (Connector oder eigener API-Schlüssel),</li>
 <li>Zusammenfassung und Gesprächsleitfaden der Recherche,</li>
 <li>deine Sperrliste (Domains oder Firmennamen, die nicht mehr angerufen werden wollen),</li>
-<li>Name des verbundenen Programms (zum Beispiel „claude-ai“) und Zeitpunkt der letzten Verbindung.</li>
+<li>Name des verbundenen Programms (zum Beispiel „claude-ai“) und Zeitpunkt der letzten Verbindung,</li>
+<li>den Zeitpunkt des letzten Zugriffs auf deinen Speicherbereich (für die Löschung nach 12 Monaten ohne Nutzung, Abschnitt 9).</li>
 </ul>
 <p>Die Excel-Datei wird beim Herunterladen aus diesen Daten erzeugt und nicht gesondert gespeichert.</p>
 
 <h2>6. Rollen bei recherchierten Kontaktdaten</h2>
 <p>Für die recherchierten Firmen- und Kontaktdaten Dritter ist der jeweilige <b>Nutzer Verantwortlicher</b> im Sinne der DSGVO: Er entscheidet, was recherchiert wird und ob und wie er die Kontakte nutzt. Die AIFOREU GmbH speichert und zeigt diese Daten nur in seinem Auftrag an (Auftragsverarbeitung, Art. 28 DSGVO). Wenn du von einem Nutzer angerufen wurdest, wende dich mit Fragen zu deinen Daten bitte zuerst an das anrufende Unternehmen.</p>
 
-<h2>7. Verbindung mit Claude oder ChatGPT (MCP)</h2>
-<p>Du verbindest die Anrufliste als Connector (Model Context Protocol, MCP) in deinem eigenen Claude- bzw. ChatGPT-Konto. Dabei meldest du dich auf dieser Website an und bestätigst die Verbindung (OAuth). Für diese Verbindung speichern wir die Registrierung des Programms und die ausgegebenen Zugriffsschlüssel in Cloudflare Workers KV, die Schlüssel nur als Prüfwert (Hash), die Zuordnung zu deinem Speicherbereich verschlüsselt.</p>
-<p>Die Anfragen an die Anrufliste kommen anschließend von Servern von <b>Anthropic</b> bzw. <b>OpenAI</b>. Die Website erhält <b>keine Zugangsdaten deines KI-Kontos</b> und keinen Zugriff auf deine sonstigen Chats. Was dein KI-Konto bei der Recherche verarbeitet, geschieht in deinem Konto bei Anthropic bzw. OpenAI nach deren eigenen Datenschutzbestimmungen.</p>
+<h2>7. Verbindung mit Claude (MCP)</h2>
+<p>Du verbindest die Anrufliste als Connector (Model Context Protocol, MCP) in deinem eigenen Claude-Konto. Dabei meldest du dich auf dieser Website an und bestätigst die Verbindung (OAuth). Für diese Verbindung speichern wir die Registrierung des Programms und die ausgegebenen Zugriffsschlüssel in Cloudflare Workers KV, die Schlüssel nur als Prüfwert (Hash), die Zuordnung zu deinem Speicherbereich verschlüsselt.</p>
+<p>Die Anfragen an die Anrufliste kommen anschließend von Servern von <b>Anthropic</b>. Die Website erhält <b>keine Zugangsdaten deines KI-Kontos</b> und keinen Zugriff auf deine sonstigen Chats. Was dein KI-Konto bei der Recherche verarbeitet, geschieht in deinem Konto bei Anthropic nach dessen eigenen Datenschutzbestimmungen.</p>
+<p>Die Oberfläche bietet nur die Verbindung mit Claude an. Technisch kann sich auf demselben Weg auch ein anderes MCP-fähiges Programm verbinden, zum Beispiel ChatGPT von OpenAI; verbindest du ein solches Programm, kommen die Anfragen von dessen Servern und es gelten dessen Datenschutzbestimmungen.</p>
 
 <h2>8. Recherche direkt im Browser mit eigenem API-Schlüssel</h2>
 <p>Wählst du „Direkt hier (eigener API-Schlüssel)“, führt dein Browser die Recherche selbst aus: Er sendet die Rechercheanfragen (Auftrag, Recherche-Regeln, Ausschluss- und Sperrliste, Zwischenergebnisse) zusammen mit deinem API-Schlüssel <b>direkt an die Claude-API von Anthropic</b> (Anthropic PBC, USA). Die Websuche und das Lesen von Webseiten erledigt dabei Anthropic.</p>
@@ -61,9 +63,10 @@
 <ul>
 <li><b>Aufträge und Listen</b> werden 6 Monate (183 Tage) nach ihrer Erstellung automatisch endgültig gelöscht. Du kannst jede Liste vorher jederzeit selbst löschen („Liste löschen“).</li>
 <li><b>Sperrliste:</b> bis du einen Eintrag entfernst.</li>
+<li><b>Ganzer Speicherbereich deines Browsers</b> (Aufträge, Listen, Sperrliste, Verbindungsangaben): wird automatisch vollständig gelöscht, wenn 12 Monate lang niemand darauf zugegriffen hat (weder über die Website noch über den Connector).</li>
 <li><b>Session-Cookie:</b> 1 Jahr, oder bis du es im Browser löschst.</li>
 <li><b>API-Schlüssel im lokalen Speicher:</b> bis du ihn mit „Schlüssel löschen“ entfernst oder die Website-Daten im Browser löschst.</li>
-<li><b>Verbindung mit dem KI-Konto:</b> Zugriffsschlüssel gelten 1 Stunde, die Verbindung verfällt nach 90 Tagen ohne Nutzung. Du kannst sie jederzeit in deinem KI-Konto trennen.</li>
+<li><b>Verbindung mit dem KI-Konto:</b> Zugriffsschlüssel gelten 1 Stunde, die Verbindung verfällt nach 90 Tagen ohne Nutzung (jede Nutzung verlängert sie). Du kannst sie jederzeit in deinem KI-Konto trennen.</li>
 <li><b>Name des verbundenen Programms und Zeitpunkt der letzten Verbindung:</b> solange der Speicherbereich deines Browsers besteht.</li>
 </ul>
 

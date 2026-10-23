@@ -46,5 +46,15 @@ dialog=(root/'cloudflare'/'connection-dialog.html').read_text()
 s=must(s,'<script>\nconst $',dialog+'\n<script src="/direct.js" defer></script>\n<script src="/web.js"></script>\n<script>\nconst $')
 for left in ('in diesen Ordner legen:</span>','>API-Schlüssel</button>','>Läuft nur auf deinem Rechner.</span>'):
     if left in s:raise SystemExit('Lokaler Text im Web-Build: '+left)
+# CSP has script-src 'self' only: move the inline scripts into files.
+THEME='try{const m=localStorage.getItem("theme");if(m==="light"||m==="dark")document.documentElement.dataset.theme=m}catch{}'
+(dist/'theme.js').write_text(THEME+'\n')
+s=must(s,'<script>'+THEME+'</script>','<script src="/theme.js"></script>')
+a=s.index('<script>\nconst $');b=s.index('</script>',a)
+(dist/'app.js').write_text(s[a+len('<script>\n'):b])
+s=s[:a]+'<script src="/app.js"></script>'+s[b+len('</script>'):]
+for page in [s]+[(dist/n).read_text() for n in ('impressum.html','datenschutz.html')]:
+    if re.search(r'<script(?![^>]*\bsrc=)',page):raise SystemExit('Inline-Skript im Web-Build (CSP erlaubt nur Dateien)')
+    if re.search(r'\son[a-z]+\s*=\s*["\']',page):raise SystemExit('Inline-Eventhandler im Web-Build (CSP)')
 (dist/'index.html').write_text(s)
 print('Browser-Oberfläche gebaut: identisches Layout zur lokalen Referenz, ohne App-Downloads.')

@@ -1,5 +1,5 @@
-// Browser-only adapters. Research runs inside the user's own Claude or OpenAI account.
-let connectorUrl='',connectorLegacyUrl='',cloudConnected=false,cloudPrompt='',lastSnapshot='',cloudPolling=false,cloudConnections={},cloudConnectedAt=null;
+// Browser-only adapters. Research runs directly here with the user's own Anthropic API key, or in the user's own Claude chat via the connector.
+let connectorUrl='',cloudConnected=false,cloudPrompt='',lastSnapshot='',cloudPolling=false,cloudConnections={},cloudConnectedAt=null;
 // Standard: Recherche direkt hier mit dem eigenen Anthropic-API-Schlüssel des Nutzers. Alternative: eigener Claude-Chat über den Connector.
 let cloudProvider='direct';
 try{const v=localStorage.getItem('research-provider');if(v==='claude')cloudProvider=v}catch{}
@@ -29,11 +29,14 @@ function cloudApplyProvider(){
  $('#summaryBox').querySelector('summary').textContent=cloudText('Zusammenfassung der Recherche','Research summary');
  cloudStatus();
 }
+function directCount(){return Math.min(100,Math.max(5,parseInt($('#anzahl')?.value)||20))}
+function directBudget(n=directCount()){return window.AnrufDirect?window.AnrufDirect.budgetFor(n):Math.max(2.5,0.5*n)}
 function directEstimate(){
- const n=Math.min(100,Math.max(5,parseInt($('#anzahl')?.value)||20));
+ const n=directCount();
  const [lo,hi]=window.AnrufDirect?window.AnrufDirect.estimate(directModel(),n):directModel()==='claude-sonnet-5-5'?[0.08*n,0.15*n]:[0.15*n,0.3*n];
- // Anthropic bills in US dollars; euro values are a rough conversion.
- return cloudText(`grob geschätzt ${Math.round(lo*0.9)} bis ${Math.round(hi*0.9)} € für ${n} Firmen mit ${directModelLabel()} (Schätzung; hängt von Branche und Gebiet ab)`,`roughly €${Math.round(lo*0.9)} to €${Math.round(hi*0.9)} for ${n} companies with ${directModelLabel()} (estimate)`);
+ // Anthropic bills in US dollars; euro values are a rough conversion. The cap is a hard stop in US dollars.
+ const cap=directBudget(n);
+ return cloudText(`grob geschätzt ${Math.round(lo*0.9)} bis ${Math.round(hi*0.9)} € für ${n} Firmen mit ${directModelLabel()} (Schätzung; hängt von Branche und Gebiet ab). Obergrenze: höchstens ${usd(cap)} $ (0,50 $ je Firma); wird sie erreicht, stoppt die Recherche und die bis dahin gefundenen Firmen bleiben`,`roughly €${Math.round(lo*0.9)} to €${Math.round(hi*0.9)} for ${n} companies with ${directModelLabel()} (estimate). Cap: at most $${usd(cap)} ($0.50 per company); when reached, the research stops and companies found so far are kept`);
 }
 function directPanel(){
  const key=directKey();
@@ -92,11 +95,10 @@ function cloudDialog(){
  $('#connectorInstructions').innerHTML=openai?'<p>Für die Browser-Version verbindest du die Anrufliste in deinem eigenen ChatGPT-Konto. Kein API-Key und keine Installation.</p><ol><li><strong>ChatGPT → Plugins → + → Add custom MCP server</strong> öffnen.</li><li>Name: <strong>Anrufliste</strong>. Unter <strong>Connection → Server URL</strong> diese Adresse eintragen:</li></ol>':'<p>Füge die Anrufliste einmal als Connector in deinem Claude-Konto hinzu. Kein API-Key, kein Geheimcode, keine Installation.</p><ol><li>In Claude <strong>Anpassen → Connectors</strong> öffnen und <strong>Benutzerdefinierten Connector hinzufügen</strong> wählen.</li><li>Name: <strong>Anrufliste</strong>. Als URL diese Adresse eintragen:</li></ol>';
  $('#providerSettingsLink').href=openai?'https://chatgpt.com/plugins':'https://claude.ai/settings/connectors';
  $('#providerSettingsLink').textContent=openai?'ChatGPT-Plugins öffnen ↗':'Claude-Connectors öffnen ↗';
- const legacy=esc(connectorLegacyUrl);
- $('#connectorAfter').innerHTML=openai?'<ol start="3"><li>Unter <strong>Authentication</strong> die Option <strong>OAuth</strong> wählen und speichern.</li><li>Auf <strong>Connect</strong> klicken. Es öffnet sich diese Website: anmelden, falls gefragt, und mit <strong>Verbinden</strong> bestätigen. Bitte im selben Browser, in dem du die Anrufliste nutzt.</li><li>In ChatGPT auf <strong>Work</strong> wechseln und im Chat <strong>@Anrufliste</strong> auswählen. Die Websuche muss für die Recherche verfügbar sein. Den hier kopierten Auftrag einfügen.</li></ol><details><summary>OAuth klappt nicht?</summary><p>Übergangsweise geht auch ein persönlicher Link mit der Option <strong>No authentication</strong>. Er enthält deinen Zugang, also nicht weitergeben:</p><input readonly aria-label="Persönlicher Übergangslink" value="'+legacy+'" style="width:100%;padding:8px;background:var(--navy);color:var(--ink);border:1px solid var(--rule-2);border-radius:5px;font:11px ui-monospace,monospace"></details><details><summary>Du nutzt bereits Codex?</summary><p>In deinem vorhandenen Codex-Client kannst du denselben Server als <strong>Streamable HTTP MCP-Server</strong> mit der obigen URL verbinden und die Anmeldung im Browser bestätigen. Die Browser-Schaltfläche öffnet ChatGPT Work.</p></details><p class="small">Die Verfügbarkeit hängt von deinem Konto und den Plugin-Berechtigungen deines Workspaces ab.</p>':'<ol start="3"><li>Auf <strong>Hinzufügen</strong> und danach auf <strong>Verbinden</strong> klicken.</li><li>Es öffnet sich diese Website: anmelden, falls gefragt, und mit <strong>Verbinden</strong> bestätigen. Bitte im selben Browser, in dem du die Anrufliste nutzt, denn deine Listen gehören zu diesem Browser.</li><li>Im Recherche-Chat den Anrufliste-Connector und die Websuche aktivieren.</li></ol><p class="small">Bei Claude Team oder Enterprise muss ein Admin eigene (benutzerdefinierte) Connectors erlauben.</p>';
+ $('#connectorAfter').innerHTML=openai?'<ol start="3"><li>Unter <strong>Authentication</strong> die Option <strong>OAuth</strong> wählen und speichern.</li><li>Auf <strong>Connect</strong> klicken. Es öffnet sich diese Website: anmelden, falls gefragt, und mit <strong>Verbinden</strong> bestätigen. Bitte im selben Browser, in dem du die Anrufliste nutzt.</li><li>In ChatGPT auf <strong>Work</strong> wechseln und im Chat <strong>@Anrufliste</strong> auswählen. Die Websuche muss für die Recherche verfügbar sein. Den hier kopierten Auftrag einfügen.</li></ol><details><summary>Du nutzt bereits Codex?</summary><p>In deinem vorhandenen Codex-Client kannst du denselben Server als <strong>Streamable HTTP MCP-Server</strong> mit der obigen URL verbinden und die Anmeldung im Browser bestätigen. Die Browser-Schaltfläche öffnet ChatGPT Work.</p></details><p class="small">Die Verfügbarkeit hängt von deinem Konto und den Plugin-Berechtigungen deines Workspaces ab.</p>':'<ol start="3"><li>Auf <strong>Hinzufügen</strong> und danach auf <strong>Verbinden</strong> klicken.</li><li>Es öffnet sich diese Website: anmelden, falls gefragt, und mit <strong>Verbinden</strong> bestätigen. Bitte im selben Browser, in dem du die Anrufliste nutzt, denn deine Listen gehören zu diesem Browser.</li><li>Im Recherche-Chat den Anrufliste-Connector und die Websuche aktivieren.</li></ol><p class="small">Bei Claude Team oder Enterprise muss ein Admin eigene (benutzerdefinierte) Connectors erlauben.</p>';
  cloudConnectionStatus();
 }
-async function showConnector(){try{const result=await api('/api/connection');if(result.error)throw Error(result.error);connectorUrl=result.url;connectorLegacyUrl=result.legacyUrl||'';$('#connectorUrl').value=connectorUrl;cloudDialog();$('#connectorDialog').showModal();await cloudTick()}catch(e){$('#errorBox').innerHTML=notice('bad','Verbindung fehlgeschlagen',esc(e.message))}}
+async function showConnector(){try{const result=await api('/api/connection');if(result.error)throw Error(result.error);connectorUrl=result.url;$('#connectorUrl').value=connectorUrl;cloudDialog();$('#connectorDialog').showModal();await cloudTick()}catch(e){$('#errorBox').innerHTML=notice('bad','Verbindung fehlgeschlagen',esc(e.message))}}
 async function copyValue(value,feedback){try{await navigator.clipboard.writeText(value);feedback.textContent=cloudText('Kopiert.','Copied.');return true}catch{feedback.textContent=cloudText('Bitte den Text markieren und manuell kopieren.','Please select and copy the text manually.');return false}}
 // ---------- Direct research in this browser ----------
 function dlog(kind,text){
@@ -109,27 +111,30 @@ function renderDirectCost(){
  const show=job&&job.id===directJobId&&(directCostSum||directError);
  box.hidden=!show;if(!show)return;
  const c=directCostSum,searches=c?`${c.searches} ${cloudText(c.searches===1?'Websuche':'Websuchen','web searches')}`:'';
- const cost=c?(directDone||!directRunning?cloudText(`Kosten dieser Liste: ca. ${usd(c.usd)} $ (Tokens + ${searches}, laut Anthropic-Preisliste; maßgeblich ist deine Anthropic-Abrechnung).`,`Cost of this list: about $${usd(c.usd)} (tokens + ${searches}, at Anthropic list prices; your Anthropic bill is authoritative).`):cloudText(`Kosten bisher: ca. ${usd(c.usd)} $ (${searches}).`,`Cost so far: about $${usd(c.usd)} (${searches}).`)):'';
+ const cap=c&&c.budget?cloudText(`, Obergrenze ${usd(c.budget)} $`,`, cap $${usd(c.budget)}`):'';
+ const cost=c?(directDone||!directRunning?cloudText(`Kosten dieser Liste: ca. ${usd(c.usd)} $ (Tokens + ${searches}, laut Anthropic-Preisliste; maßgeblich ist deine Anthropic-Abrechnung).`,`Cost of this list: about $${usd(c.usd)} (tokens + ${searches}, at Anthropic list prices; your Anthropic bill is authoritative).`):cloudText(`Kosten bisher: ca. ${usd(c.usd)} $ (${searches}${cap}).`,`Cost so far: about $${usd(c.usd)} (${searches}${cap}).`)):'';
  box.innerHTML=(directError?`<b style="color:var(--red)">${esc(directError)}</b><br>`:'')+esc(cost);
 }
+// Server errors keep their HTTP status: the research stops all agents on 401/403/404/409 (job closed or gone).
+function directFail(r,body){const e=Error(body.error||('HTTP '+r.status));e.status=r.status;e.closed=body.closed===true;return e}
 async function directPost(path,data){
  const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
  const body=await r.json().catch(()=>({}));
- if(!r.ok||body.error)throw Error(body.error||('HTTP '+r.status));
+ if(!r.ok||body.error)throw directFail(r,body);
  return body;
 }
-async function directGet(path){const r=await fetch(path);const body=await r.json().catch(()=>({}));if(!r.ok||body.error)throw Error(body.error||('HTTP '+r.status));return body}
+async function directGet(path){const r=await fetch(path);const body=await r.json().catch(()=>({}));if(!r.ok||body.error)throw directFail(r,body);return body}
 // Called by run() before /api/run: in direct mode a key is required.
 function cloudBeforeRun(){
  if(cloudProvider!=='direct')return true;
  if(directRunning){$('#errorBox').innerHTML=notice('warn',cloudText('Recherche läuft bereits','Research already running'),esc(cloudText('Bitte warten oder die laufende Recherche abbrechen.','Please wait or cancel the running research.')));return false}
- if(!directKey()){$('#errorBox').innerHTML=notice('warn',cloudText('API-Schlüssel fehlt','API key missing'),esc(cloudText('Bitte oben deinen Anthropic-API-Schlüssel eintragen oder „Claude-Chat (Connector, kostenlos)“ wählen.','Please enter your Anthropic API key above or choose “Claude chat (connector, free)”.')));$('#directKeyInput')?.focus();return false}
+ if(!directKey()){$('#errorBox').innerHTML=notice('warn',cloudText('API-Schlüssel fehlt','API key missing'),esc(cloudText('Bitte oben deinen Anthropic-API-Schlüssel eintragen oder unter „Recherche mit“ die Option „Im Claude-Chat (dein Claude-Abo)“ wählen.','Please enter your Anthropic API key above or choose “Im Claude-Chat (dein Claude-Abo)” under “Recherche mit”.')));$('#directKeyInput')?.focus();return false}
  if(!window.AnrufDirect){$('#errorBox').innerHTML=notice('bad',cloudText('Recherche-Modul nicht geladen','Research module not loaded'),esc(cloudText('Bitte die Seite neu laden.','Please reload the page.')));return false}
  return true;
 }
 // Called by run() after /api/run created the job.
-function cloudAfterRun(created){if(cloudProvider==='direct'&&created&&created.id)startDirect(created.id)}
-async function startDirect(id){
+function cloudAfterRun(created){if(cloudProvider==='direct'&&created&&created.id)startDirect(created.id,created.params?.anzahl)}
+async function startDirect(id,anzahl){
  const D=window.AnrufDirect;
  directJobId=id;directRunning=true;directDone=false;directLog=[];directPhase='prepare';directCostSum=null;directError='';
  directCtl=new AbortController();lsSet(DIRECT_JOB,id);
@@ -137,7 +142,7 @@ async function startDirect(id){
  dlog('info',cloudText(`Recherche startet direkt hier im Browser mit ${directModelLabel()}.`,`Research starts right here in your browser with ${directModelLabel()}.`));
  try{
   const result=await D.runResearch(id,{
-   client:D.createClient(directKey()),model:directModel(),signal:directCtl.signal,
+   client:D.createClient(directKey()),model:directModel(),signal:directCtl.signal,budgetUsd:directBudget(anzahl||directCount()),
    log:dlog,onCost:c=>{directCostSum=c;renderDirectCost()},onPhase:p=>{directPhase=p;lastSnapshot='';cloudTick()},
    server:{brief:id=>directPost('/api/brief',{id}),save:(id,companies)=>directPost('/api/save',{id,companies}),finish:(id,summary,guide)=>directPost('/api/finish',{id,summary,guide}),list:id=>directGet('/api/list?id='+encodeURIComponent(id))}
   });
@@ -155,6 +160,8 @@ async function startDirect(id){
   await cloudTick();renderDirectCost();
  }
 }
+// Closing or reloading the tab stops the browser research: warn while it runs.
+window.addEventListener('beforeunload',e=>{if(directRunning){e.preventDefault();e.returnValue=''}});
 window.addEventListener('DOMContentLoaded',()=>{
  cloudApplyProvider();
  $('#cloudProvider').onchange=()=>{cloudProvider=$('#cloudProvider').value;try{localStorage.setItem('research-provider',cloudProvider)}catch{}lastSnapshot='';cloudApplyProvider();cloudTick()};
