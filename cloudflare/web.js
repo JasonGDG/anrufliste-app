@@ -1,7 +1,8 @@
 // Browser-only adapters. Research runs inside the user's own Claude or OpenAI account.
 let connectorUrl='',connectorLegacyUrl='',cloudConnected=false,cloudPrompt='',lastSnapshot='',cloudPolling=false,cloudConnections={},cloudConnectedAt=null;
-let cloudProvider='claude';
-try{const v=localStorage.getItem('research-provider');if(v==='openai'||v==='direct')cloudProvider=v}catch{}
+// Recherche läuft immer direkt hier (eigener API-Schlüssel). Der Umweg über den Claude-Chat/ChatGPT ist aus der Oberfläche entfernt;
+// die MCP-Schnittstelle bleibt serverseitig nur für bestehende Verbindungen bestehen.
+let cloudProvider='direct';
 // Direct research: the user's own Anthropic API key stays in this browser (localStorage) and only goes to api.anthropic.com.
 const DIRECT_KEY='anthropic-api-key',DIRECT_MODEL='direct-model',DIRECT_JOB='direct-job';
 let directJobId=null,directRunning=false,directCtl=null,directLog=[],directPhase='prepare',directCostSum=null,directError='',directDone=false;
