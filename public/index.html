@@ -265,7 +265,7 @@ tr.gesperrt .sperr{opacity:1;color:var(--red);border-color:var(--red)}
         <div class="steps" id="steps"></div>
         <div class="state" id="stateTxt"></div>
         <details class="fold hide" id="summaryBox"><summary data-i="sumTitle">Zusammenfassung von Claude</summary><div id="summary"></div></details>
-        <details class="fold"><summary data-i="details">Protokoll</summary><div class="lines" id="log"></div></details>
+        <details class="fold" id="logBox"><summary data-i="details">Protokoll</summary><div class="lines" id="log"></div></details>
       </div>
       <div class="legend">
         <button type="button" class="flt" data-flt="A" aria-pressed="false"><i style="background:var(--a)"></i><span data-i="lgA">A: Entscheider mit Durchwahl</span></button>
@@ -315,7 +315,7 @@ const EN = {
   companies: 'companies', partial: 'The companies found so far are in the Excel file and won\'t come up again next time.',
   partialDl: 'Download partial list', cPrio: 'Prio', cStufe: 'Tier', cFirma: 'Company', cAP: 'Contact', cRolle: 'Role',
   cTelAP: 'Direct line', cTelZ: 'Switchboard', cMail: 'Email', cWeb: 'Website', cMA: 'Employees', cMAs: 'Sure?',
-  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', pySetup: 'Could not set up the Excel builder', busy: 'A list is still running:', busyView: 'View', cSperre: 'Do not call', gesperrt: 'Blocked', entsperren: 'unblock', delSure: 'Really delete?', delList: 'Delete list', sperrAdd: 'Block', sperrTitle: 'Do-not-call list', sperrHint: 'Companies that do not want to be called. They never show up in a new list. In a list, use “Block” in the last column.', sperrPh: 'Website or company name', legalTitle: 'Legal notes before calling', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
+  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', sWaitFirst: 'Claude is researching. The first companies usually appear after 2 to 4 minutes; the log below shows what is happening.', pySetup: 'Could not set up the Excel builder', busy: 'A list is still running:', busyView: 'View', cSperre: 'Do not call', gesperrt: 'Blocked', entsperren: 'unblock', delSure: 'Really delete?', delList: 'Delete list', sperrAdd: 'Block', sperrTitle: 'Do-not-call list', sperrHint: 'Companies that do not want to be called. They never show up in a new list. In a list, use “Block” in the last column.', sperrPh: 'Website or company name', legalTitle: 'Legal notes before calling', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
 };
 let lang = 'de';
 try { lang = localStorage.getItem('lang') || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en'); } catch {}
@@ -338,7 +338,7 @@ Object.assign(DE, {
   companies: 'Firmen', partial: 'Die bis dahin gefundenen Firmen stehen unten in der Excel und kommen beim nächsten Mal nicht doppelt.',
   partialDl: 'Teilliste herunterladen', cPrio: 'Prio', cStufe: 'Stufe', cFirma: 'Firma', cAP: 'Ansprechpartner', cRolle: 'Rolle',
   cTelAP: 'Telefon Ansprechpartner', cTelZ: 'Telefon Zentrale', cMail: 'E-Mail', cWeb: 'Website', cMA: 'Mitarbeiter', cMAs: 'sicher?',
-  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', pySetup: 'Excel-Baukasten ließ sich nicht einrichten', busy: 'Es läuft noch ein Auftrag:', busyView: 'Ansehen', cSperre: 'Nicht anrufen', gesperrt: 'Gesperrt', entsperren: 'entsperren', delSure: 'Wirklich löschen?', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
+  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', sWaitFirst: 'Claude recherchiert. Die ersten Firmen erscheinen meist nach 2 bis 4 Minuten, unten im Protokoll siehst du, was gerade passiert.', pySetup: 'Excel-Baukasten ließ sich nicht einrichten', busy: 'Es läuft noch ein Auftrag:', busyView: 'Ansehen', cSperre: 'Nicht anrufen', gesperrt: 'Gesperrt', entsperren: 'entsperren', delSure: 'Wirklich löschen?', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
 });
 const t = k => (lang === 'en' ? EN[k] : DE[k]) ?? DE[k] ?? k;
 function applyLang() {
@@ -471,7 +471,9 @@ function renderJob() {
   $('#dlBtn').classList.toggle('hide', !job.excel || running);
   $('#dlBtn').href = '/api/excel?t=' + job.id;
   $('#dlBtn').querySelector('span').textContent = job.state === 'done' ? t('download') : t('partialDl');
-  $('#stateTxt').textContent = running ? t('sRunning') : job.state === 'done' ? t('sDone') : job.state === 'cancelled' ? t('sCancelled') : '';
+  const wartet = running && !(job.firms || []).length;
+  if (wartet) $('#logBox').open = true;
+  $('#stateTxt').textContent = wartet ? t('sWaitFirst') : running ? t('sRunning') : job.state === 'done' ? t('sDone') : job.state === 'cancelled' ? t('sCancelled') : '';
   $('#summaryBox').classList.toggle('hide', !(job.state === 'done' && job.summary));
   $('#summary').innerHTML = job.state === 'done' ? md(job.summary || '') : '';
   clearInterval(tick);

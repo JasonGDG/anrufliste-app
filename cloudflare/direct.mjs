@@ -282,7 +282,7 @@ Pro Firma:
 
 ${RULES}
 
-Speichern: Rufe save_companies nach je 3 bis 5 fertig recherchierten Firmen auf. Das Ergebnis meldet, wie viele gespeichert wurden und ob dein Soll erreicht ist. Ist es erreicht oder das Gebiet ausgeschöpft, beende mit einer kurzen Rückmeldung (Anzahl, Auffälligkeiten, bewusst aussortierte Firmen), ohne weitere Werkzeuge.
+Speichern: Rufe save_companies nach JEDER fertig recherchierten Firma auf (eine Firma pro Aufruf), damit der Nutzer sie sofort sieht. Das Ergebnis meldet, wie viele gespeichert wurden und ob dein Soll erreicht ist. Ist es erreicht oder das Gebiet ausgeschöpft, beende mit einer kurzen Rückmeldung (Anzahl, Auffälligkeiten, bewusst aussortierte Firmen), ohne weitere Werkzeuge.
 
 Dein Teilgebiet: ${area.name}. Dein Soll: ${area.anzahl} Firmen.`;
 }

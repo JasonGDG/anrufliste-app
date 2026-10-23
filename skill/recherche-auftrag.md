@@ -35,7 +35,7 @@ Website: Startseite, Impressum, Kontakt, Team/Ansprechpartner, Karriere/Jobs, Da
 ## Ausgabe
 JSON-Datei (UTF-8, Liste von Objekten), Felder exakt:
 {"firma","ort","kreis","bundesland","verbund","ansprechpartner","rolle","tel_ansprechpartner","tel_zentrale","email","website","mitarbeiter","mitarbeiter_sicher","quellen":[...],"widerspruch","erreichbarkeit","kaufsignal","signal_staerke","konkurrenz","eignung","extra":{...},"notiz"}
-Nach je ~5 Firmen speichern (Datei komplett neu schreiben, gültiges JSON). Am Ende kurze Rückmeldung: Anzahl, wie viele Eignung hoch, wie viele mit starkem Signal, wie viele mit Durchwahl, Auffälligkeiten, bewusst aussortierte Firmen.
+Nach JEDER fertig recherchierten Firma sofort speichern (Datei komplett neu schreiben, gültiges JSON), damit der Nutzer die Firmen live sieht. Am Ende kurze Rückmeldung: Anzahl, wie viele Eignung hoch, wie viele mit starkem Signal, wie viele mit Durchwahl, Auffälligkeiten, bewusst aussortierte Firmen.
 
 ## Werkzeuge
 WebSearch und WebFetch; wenn eine Seite blockt, curl --compressed -L -A "Mozilla/5.0" <url>. Wenn vorhanden auch Exa (mcp__exa__*). Keine Formulare absenden, niemanden kontaktieren.
