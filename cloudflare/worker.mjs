@@ -31,7 +31,7 @@ const loginRequired=()=>new Response('Bitte mit Benutzername und Passwort anmeld
 function secure(response,{cookie,html}={}){
  const headers=new Headers(response.headers);
  headers.set('Cache-Control','no-store');headers.set('X-Frame-Options','DENY');headers.set('Referrer-Policy','same-origin');headers.set('X-Content-Type-Options','nosniff');
- headers.set('Content-Security-Policy',"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self' https: http://localhost:* http://127.0.0.1:*");
+ headers.set('Content-Security-Policy',"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.anthropic.com; frame-ancestors 'none'; form-action 'self' https: http://localhost:* http://127.0.0.1:*");
  if(html)headers.set('Content-Type','text/html; charset=utf-8');
  if(cookie)headers.append('Set-Cookie',cookie);
  return new Response(response.body,{status:response.status,headers});

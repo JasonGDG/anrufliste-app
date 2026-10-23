@@ -56,6 +56,14 @@ export class ResearchRoom{
     const j={id:crypto.randomUUID(),params,titel:clean(params.ziel+' · '+params.region,100),state:'waiting',startedAt:Date.now(),updatedAt:Date.now(),firms:[],summary:'',guide:{}};
     await this.storage.put({['job:'+j.id]:j,current:j.id});return json(j,201);
    });
+   // Browser research with the user's own API key: same logic as the MCP tools, bound to one job id.
+   if(['/api/brief','/api/save','/api/finish'].includes(p)&&request.method==='POST')return await this.ctx.blockConcurrencyWhile(async()=>{
+    const b=await request.json();
+    const id=clean(b?.id,100);if(!id)return json({error:'Auftrags-ID fehlt.'},400);
+    if(p==='/api/brief')return json(await this.call('get_research_brief',{job_id:id}));
+    if(p==='/api/save')return json(await this.call('save_companies',{job_id:id,companies:b.companies}));
+    return json(await this.call('finish_research',{job_id:id,summary:b.summary,guide:b.guide&&typeof b.guide==='object'&&!Array.isArray(b.guide)?b.guide:{}}));
+   });
    if(p==='/api/sperrliste')return json({sperrliste:await this.sperrliste()});
    if(p==='/api/sperren'&&request.method==='POST')return await this.ctx.blockConcurrencyWhile(async()=>{
     const key=sperrKey(clean((await request.json()).eintrag,300));

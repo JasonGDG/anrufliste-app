@@ -84,15 +84,30 @@ Der Nutzer erstellt den Auftrag in der Weboberfläche, kopiert ihn über „Auft
 - **Löschen:** `POST /api/loeschen {id}` entfernt einen Auftrag komplett (laufende Aufträge erst abbrechen).
 - **Löschfrist:** Aufträge werden 183 Tage nach Erstellung endgültig gelöscht, bei jedem Zugriff und täglich per Durable-Object-Alarm. Die Sperrliste bleibt.
 
+### Direkt im Browser mit eigenem API-Schlüssel
+
+Unter „Recherche mit“ gibt es drei Wege: **Direkt hier (eigener API-Schlüssel)**, **Claude-Chat (Connector, kostenlos)** und **OpenAI**. Beim direkten Weg trägt der Nutzer seinen eigenen Anthropic-API-Schlüssel ein. Der Schlüssel liegt nur im `localStorage` des Browsers (`anthropic-api-key`, löschbar über „Schlüssel löschen“) und geht ausschließlich an `api.anthropic.com`, nie an diesen Server. Die CSP erlaubt dafür zusätzlich `connect-src https://api.anthropic.com`, sonst nichts.
+
+Ablauf: „Liste erstellen“ legt den Auftrag wie bisher an (`POST /api/run`). Danach läuft alles im Tab (Tab offen lassen):
+
+1. `POST /api/brief {id}`: Auftrag, Regeln, Ausschluss- und Sperrliste (gleicher Inhalt wie `get_research_brief`).
+2. Planung: ein Aufruf mit structured output (`output_config.format`, JSON-Schema) legt Kaufsignal, Verbund, Konkurrenz, Zusatzfelder und 2 bis 4 Teilgebiete fest.
+3. Je Teilgebiet ein eigener Agenten-Loop, alle parallel. Werkzeuge: `web_search_20260209`, `web_fetch_20260209` und das eigene Werkzeug `save_companies` (strict, `eager_input_streaming`). Jeder Loop speichert nach je 3 bis 5 Firmen über `POST /api/save {id, companies}` (gleiche Prüfung wie das MCP-Werkzeug: Dubletten, Sperrliste, Limit). Fehlen danach deutlich Firmen, läuft ein weiterer Durchgang über das ganze Gebiet.
+4. Abschluss: `finish_research` (strict) schreibt Zusammenfassung und Gesprächsleitfaden über `POST /api/finish {id, summary, guide}`.
+
+Technik: offizielles SDK `@anthropic-ai/sdk` (exakt gepinnt in `cloudflare/package.json`), von `build.py` per esbuild zu `dist/direct.js` gebündelt (`cloudflare/direct-entry.mjs` → `cloudflare/direct.mjs`). Modell `claude-opus-5-5` (Standard) oder `claude-sonnet-5-5` (günstiger), adaptives Denken, `effort: "medium"`, keine Sampling-Parameter, `tool_choice` automatisch, Streaming mit `finalMessage()`, `max_tokens` 32000, automatisches Prompt-Caching, serverseitiger Fallback bei Ablehnungen (`fallbacks: "default"`, Beta `server-side-fallback-2026-07-01`). Die Antworten werden unverändert an den Verlauf angehängt; `pause_turn` wird fortgesetzt; mehrere Werkzeugaufrufe einer Antwort gehen gesammelt in einer Nachricht zurück; ungültiges Werkzeug-JSON wird als `is_error` gemeldet. Fehler werden über die SDK-Fehlerklassen unterschieden (ungültiger Schlüssel, Ratenlimit mit Wartezeit, sonstige API-Fehler). „Abbrechen“ stoppt die Anfragen sofort (AbortController) und bricht den Auftrag ab; bereits gespeicherte Firmen bleiben.
+
+Kosten: Die Oberfläche zählt die Kosten aus `usage` mit (Opus 5.5: 4 $/20 $ je Mio. Ein-/Ausgabe-Tokens, Sonnet 5.5: 2 $/10 $, Cache-Lesen 0,20 $, Cache-Schreiben 1,25-facher Eingabepreis, Websuche 10 $ je 1.000 Suchen; Web-Abruf ohne Aufpreis, nur Tokens). Die Schätzung vor dem Start nimmt pro Firma etwa 0,15 bis 0,30 $ (Opus) bzw. 0,08 bis 0,15 $ (Sonnet) an: rund 2 Suchen, einige gelesene Seiten und der wachsende Verlauf je Agent, der überwiegend aus dem Cache gelesen wird. Das ist eine grobe Annahme, bis echte Läufe vorliegen; maßgeblich ist die Abrechnung bei Anthropic.
+
 ### Impressum und Datenschutz
 
 `/impressum` und `/datenschutz` sind ohne Passwort erreichbar und in der Seitenleiste sowie im Verbindungsdialog verlinkt. Quellen: `cloudflare/legal/`; `build.py` übernimmt Schrift- und Farb-Tokens (hell/dunkel) aus `public/index.html` in `dist/legal.css`.
 
 ### Bauen und Veröffentlichen
 
-`npm ci --prefix cloudflare`, `python3 cloudflare/build.py` (bricht ab, wenn ein Anker in `public/index.html` fehlt), prüfen mit `node --test cloudflare/test.mjs`, veröffentlichen mit `npx wrangler deploy`. Benötigt: Secret `SHARE_PASSWORD`, KV-Namespace `anrufliste-oauth` (Bindung `OAUTH_KV`, in `wrangler.toml`), SQLite-Durable-Objects-Migration (in `wrangler.toml`). Lokal: `npx wrangler dev --var SHARE_PASSWORD:…`.
+`npm ci --prefix cloudflare` (liefert auch esbuild und das Anthropic-SDK für `dist/direct.js`), `python3 cloudflare/build.py` (bricht ab, wenn ein Anker in `public/index.html` fehlt), prüfen mit `node --test cloudflare/test.mjs`, veröffentlichen mit `npx wrangler deploy`. Benötigt: Secret `SHARE_PASSWORD`, KV-Namespace `anrufliste-oauth` (Bindung `OAUTH_KV`, in `wrangler.toml`), SQLite-Durable-Objects-Migration (in `wrangler.toml`). Lokal: `npx wrangler dev --var SHARE_PASSWORD:…`.
 
-Auf Cloudflare wird kein Claude-Konto und kein Anthropic-API-Key gespeichert; es laufen keine lokalen Helfer oder Claude-Code-Container. Der Recherche-Chat läuft im Claude-Tab des jeweiligen Nutzers. Ein Browserwechsel oder gelöschte Cookies erzeugen einen neuen getrennten Zugang.
+Auf Cloudflare wird kein Claude-Konto und kein Anthropic-API-Key gespeichert (beim direkten Weg bleibt der Schlüssel im Browser); es laufen keine lokalen Helfer oder Claude-Code-Container. Der Recherche-Chat läuft im Claude-Tab des jeweiligen Nutzers. Ein Browserwechsel oder gelöschte Cookies erzeugen einen neuen getrennten Zugang.
 
 Der lokale CLI-Betrieb bleibt unabhängig davon nutzbar. Das frühere Mac-Testpaket ist kein Bestandteil der öffentlichen Webversion.
 

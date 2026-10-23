@@ -14,7 +14,7 @@
 <h1>Datenschutzerklärung</h1>
 <p class="stand">Stand: 23.10.2026</p>
 
-<p>Diese Erklärung beschreibt, welche personenbezogenen Daten bei der Nutzung der Website „Anrufliste“ (Browser-Version) verarbeitet werden. Die Anrufliste ist ein passwortgeschütztes Werkzeug: Nutzer erstellen hier Rechercheaufträge, lassen passende Firmen von ihrem eigenen KI-Konto (Claude von Anthropic oder ChatGPT von OpenAI) recherchieren und erhalten das Ergebnis als Tabelle und Excel-Datei.</p>
+<p>Diese Erklärung beschreibt, welche personenbezogenen Daten bei der Nutzung der Website „Anrufliste“ (Browser-Version) verarbeitet werden. Die Anrufliste ist ein passwortgeschütztes Werkzeug: Nutzer erstellen hier Rechercheaufträge, lassen passende Firmen von ihrem eigenen KI-Konto (Claude von Anthropic oder ChatGPT von OpenAI) oder direkt im Browser mit ihrem eigenen Anthropic-API-Schlüssel recherchieren und erhalten das Ergebnis als Tabelle und Excel-Datei.</p>
 
 <h2>1. Verantwortlicher</h2>
 <div class="card">
@@ -31,7 +31,7 @@
 
 <h2>4. Cookies und lokaler Speicher</h2>
 <p>Wir setzen ein einziges dauerhaftes Cookie: <code>__Host-anrufliste_session</code>. Es enthält eine zufällige Kennung, die deinen Browser seinem eigenen Speicherbereich zuordnet, damit nur du deine Listen siehst. Es ist nur über HTTPS lesbar, für Skripte nicht zugänglich und gilt 1 Jahr. Während du dein KI-Konto verbindest, setzen wir zusätzlich kurzlebige Cookies (<code>__Host-oauth-consent-…</code>, höchstens 10 Minuten), die den Bestätigungsschritt gegen Missbrauch absichern.</p>
-<p>Im lokalen Speicher deines Browsers merken wir uns Sprache, Farbschema und den gewählten KI-Anbieter. Diese Angaben verlassen deinen Browser nicht.</p>
+<p>Im lokalen Speicher deines Browsers merken wir uns Sprache, Farbschema, den gewählten KI-Anbieter und das gewählte Modell. Wenn du „Direkt hier (eigener API-Schlüssel)“ nutzt, liegt dort außerdem dein Anthropic-API-Schlüssel (siehe Abschnitt 8). Diese Angaben werden nicht an diese Website übertragen; du kannst den Schlüssel jederzeit mit „Schlüssel löschen“ entfernen.</p>
 <p>Diese Speicherungen sind für den von dir gewünschten Dienst unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG). Eine Einwilligung und ein Cookie-Banner sind dafür nicht nötig. Wir verwenden <b>kein Tracking, keine Analyse-Tools, keine Werbe-Cookies</b> und binden keine Inhalte Dritter ein; auch die Schriftart wird von dieser Website selbst ausgeliefert.</p>
 
 <h2>5. Gespeicherte Inhalte</h2>
@@ -52,23 +52,29 @@
 <p>Du verbindest die Anrufliste als Connector (Model Context Protocol, MCP) in deinem eigenen Claude- bzw. ChatGPT-Konto. Dabei meldest du dich auf dieser Website an und bestätigst die Verbindung (OAuth). Für diese Verbindung speichern wir die Registrierung des Programms und die ausgegebenen Zugriffsschlüssel in Cloudflare Workers KV, die Schlüssel nur als Prüfwert (Hash), die Zuordnung zu deinem Speicherbereich verschlüsselt.</p>
 <p>Die Anfragen an die Anrufliste kommen anschließend von Servern von <b>Anthropic</b> bzw. <b>OpenAI</b>. Die Website erhält <b>keine Zugangsdaten deines KI-Kontos</b> und keinen Zugriff auf deine sonstigen Chats. Was dein KI-Konto bei der Recherche verarbeitet, geschieht in deinem Konto bei Anthropic bzw. OpenAI nach deren eigenen Datenschutzbestimmungen.</p>
 
-<h2>8. Speicherdauer</h2>
+<h2>8. Recherche direkt im Browser mit eigenem API-Schlüssel</h2>
+<p>Wählst du „Direkt hier (eigener API-Schlüssel)“, führt dein Browser die Recherche selbst aus: Er sendet die Rechercheanfragen (Auftrag, Recherche-Regeln, Ausschluss- und Sperrliste, Zwischenergebnisse) zusammen mit deinem API-Schlüssel <b>direkt an die Claude-API von Anthropic</b> (Anthropic PBC, USA). Die Websuche und das Lesen von Webseiten erledigt dabei Anthropic.</p>
+<p>Der Schlüssel bleibt im lokalen Speicher deines Browsers. <b>Diese Website erhält den Schlüssel nicht</b> und sieht die Anfragen an Anthropic nicht. Sie erhält nur, was auch beim Connector-Weg ankommt: den Abruf des Auftrags sowie die gefundenen Firmen, die Zusammenfassung und den Gesprächsleitfaden zum Speichern (Abschnitt 5).</p>
+<p>Für diese Anfragen ist Anthropic <b>dein Dienstleister</b> auf Grundlage deines eigenen Vertrags mit Anthropic, nicht ein Dienstleister der AIFOREU GmbH. Es gelten die Bedingungen und Datenschutzbestimmungen von Anthropic für die API; die Kosten rechnet Anthropic mit dir ab. Für die Übermittlung in die USA bist du in diesem Fall selbst verantwortlich. Hinweis: Jeder, der Zugriff auf deinen Browser hat, kann den gespeicherten Schlüssel auslesen; lösche ihn auf gemeinsam genutzten Geräten nach der Nutzung.</p>
+
+<h2>9. Speicherdauer</h2>
 <ul>
 <li><b>Aufträge und Listen</b> werden 6 Monate (183 Tage) nach ihrer Erstellung automatisch endgültig gelöscht. Du kannst jede Liste vorher jederzeit selbst löschen („Liste löschen“).</li>
 <li><b>Sperrliste:</b> bis du einen Eintrag entfernst.</li>
 <li><b>Session-Cookie:</b> 1 Jahr, oder bis du es im Browser löschst.</li>
+<li><b>API-Schlüssel im lokalen Speicher:</b> bis du ihn mit „Schlüssel löschen“ entfernst oder die Website-Daten im Browser löschst.</li>
 <li><b>Verbindung mit dem KI-Konto:</b> Zugriffsschlüssel gelten 1 Stunde, die Verbindung verfällt nach 90 Tagen ohne Nutzung. Du kannst sie jederzeit in deinem KI-Konto trennen.</li>
 <li><b>Name des verbundenen Programms und Zeitpunkt der letzten Verbindung:</b> solange der Speicherbereich deines Browsers besteht.</li>
 </ul>
 
-<h2>9. Rechtsgrundlagen</h2>
+<h2>10. Rechtsgrundlagen</h2>
 <p>Wir verarbeiten deine Daten, um dir das Werkzeug bereitzustellen (Art. 6 Abs. 1 lit. b DSGVO), und für einen sicheren Betrieb und den Schutz vor Missbrauch (Art. 6 Abs. 1 lit. f DSGVO). Für recherchierte Kontaktdaten Dritter siehe Abschnitt 6.</p>
 
-<h2>10. Deine Rechte</h2>
+<h2>11. Deine Rechte</h2>
 <p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage von Art. 6 Abs. 1 lit. f (Art. 21). Schreib uns dazu an <a href="mailto:contact@aiforgov.eu">contact@aiforgov.eu</a>.</p>
 <p>Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren, zum Beispiel bei der für uns zuständigen Landesbeauftragten für den Datenschutz Niedersachsen.</p>
 
-<h2>11. Keine automatisierten Entscheidungen</h2>
+<h2>12. Keine automatisierten Entscheidungen</h2>
 <p>Wir treffen keine automatisierten Entscheidungen im Sinne von Art. 22 DSGVO und erstellen keine Profile über Besucher dieser Website.</p>
 
 <p class="foot"><a href="/impressum">Impressum</a> · <a href="/">Zur Anrufliste</a></p>

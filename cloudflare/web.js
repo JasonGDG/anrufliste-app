@@ -1,30 +1,59 @@
 // Browser-only adapters. Research runs inside the user's own Claude or OpenAI account.
 let connectorUrl='',connectorLegacyUrl='',cloudConnected=false,cloudPrompt='',lastSnapshot='',cloudPolling=false,cloudConnections={},cloudConnectedAt=null;
 let cloudProvider='claude';
-try{if(localStorage.getItem('research-provider')==='openai')cloudProvider='openai'}catch{}
+try{const v=localStorage.getItem('research-provider');if(v==='openai'||v==='direct')cloudProvider=v}catch{}
+// Direct research: the user's own Anthropic API key stays in this browser (localStorage) and only goes to api.anthropic.com.
+const DIRECT_KEY='anthropic-api-key',DIRECT_MODEL='direct-model',DIRECT_JOB='direct-job';
+let directJobId=null,directRunning=false,directCtl=null,directLog=[],directPhase='prepare',directCostSum=null,directError='',directDone=false;
+function lsGet(k){try{return localStorage.getItem(k)||''}catch{return ''}}
+function lsSet(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch{}}
+function directKey(){return lsGet(DIRECT_KEY)}
+function directModel(){const m=lsGet(DIRECT_MODEL);return m==='claude-sonnet-5-5'?m:'claude-opus-5-5'}
+function directModelLabel(){return directModel()==='claude-sonnet-5-5'?'Claude Sonnet 5.5':'Claude Opus 5.5'}
+const usd=v=>v.toLocaleString(typeof lang!=='undefined'&&lang==='en'?'en-US':'de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
 function cloudText(de,en){return typeof lang!=='undefined'&&lang==='en'?en:de}
-function cloudProviderName(){return cloudProvider==='openai'?'OpenAI':'Claude'}
+function cloudProviderName(){return cloudProvider==='openai'?'OpenAI':cloudProvider==='direct'?'Anthropic':'Claude'}
 function cloudClientName(){return cloudProvider==='openai'?'ChatGPT Work':'Claude'}
-function cloudIsConnected(){return !!cloudConnections[cloudProvider]||(cloudProvider==='claude'&&!!cloudConnectedAt&&!Object.keys(cloudConnections).length)}
+function cloudIsConnected(){if(cloudProvider==='direct')return !!directKey();return !!cloudConnections[cloudProvider]||(cloudProvider==='claude'&&!!cloudConnectedAt&&!Object.keys(cloudConnections).length)}
 function cloudApplyProvider(){
  const client=cloudClientName(),name=cloudProviderName();
  if($('#cloudProvider'))$('#cloudProvider').value=cloudProvider;
- for(const [key,value]of Object.entries({lead:cloudText(`Dein eigenes ${client} sucht passende Firmen mit Entscheidern, Durchwahlen und Kaufsignalen. Jede Angabe mit Quelle, keine Firma doppelt.`,`Your own ${client} finds matching companies with decision makers, direct lines and buying signals. Every fact with a source.`),local:cloudText(`Im Browser. Dein eigenes ${name}-Konto.`,`In your browser. Your own ${name} account.`),runHint:cloudText(`Auftrag hier erstellen, im eigenen ${client}-Tab recherchieren.`,`Create your brief here, research in your own ${client} tab.`),h2d:cloudText(`Dein ${client} recherchiert. Firmen erscheinen hier live.`,`Your ${client} researches. Companies appear live here.`)}))document.querySelectorAll(`[data-i="${key}"]`).forEach(e=>e.textContent=value);
+ const direct=cloudProvider==='direct';
+ for(const [key,value]of Object.entries({lead:cloudText(`Dein eigenes ${client} sucht passende Firmen mit Entscheidern, Durchwahlen und Kaufsignalen. Jede Angabe mit Quelle, keine Firma doppelt.`,`Your own ${client} finds matching companies with decision makers, direct lines and buying signals. Every fact with a source.`),local:cloudText(`Im Browser. Dein eigenes ${name}-Konto.`,`In your browser. Your own ${name} account.`),runHint:direct?cloudText('Claude recherchiert direkt hier im Browser. Tab offen lassen.','Claude researches right here in your browser. Keep the tab open.'):cloudText(`Auftrag hier erstellen, im eigenen ${client}-Tab recherchieren.`,`Create your brief here, research in your own ${client} tab.`),h2d:cloudText(`Dein ${client} recherchiert. Firmen erscheinen hier live.`,`Your ${client} researches. Companies appear live here.`)}))document.querySelectorAll(`[data-i="${key}"]`).forEach(e=>e.textContent=value);
  $('#cloudHandoffTitle').textContent=cloudText(`Mit deinem eigenen ${client} recherchieren`,`Research with your own ${client}`);
  $('#cloudHandoffText').textContent=cloudProvider==='openai'?cloudText('Aktiviere in ChatGPT Work dein Anrufliste-Plugin und die Websuche. Füge den kopierten Auftrag ein. Die Firmen erscheinen automatisch hier.','In ChatGPT Work, enable your Anrufliste plugin and web search. Paste the copied brief. Companies appear here automatically.'):cloudText('Ein Klick öffnet Claude mit dem fertigen Auftrag, dort nur noch Senden drücken. Der Anrufliste-Connector muss eingeschaltet sein (Menü „+“ → Konnektoren). Die Firmen erscheinen automatisch hier.','One click opens Claude with your brief, just press send there. The Anrufliste connector must be on (menu “+” → Connectors). Companies appear here automatically.');
  $('#cloudResearch').textContent=cloudProvider==='openai'?cloudText(`Auftrag kopieren & ${client} öffnen ↗`,`Copy brief & open ${client} ↗`):cloudText(`In ${client} recherchieren ↗`,`Research in ${client} ↗`);
  $('#summaryBox').querySelector('summary').textContent=cloudText('Zusammenfassung der Recherche','Research summary');
  cloudStatus();
 }
+function directEstimate(){
+ const n=Math.min(100,Math.max(5,parseInt($('#anzahl')?.value)||20));
+ const [lo,hi]=window.AnrufDirect?window.AnrufDirect.estimate(directModel(),n):directModel()==='claude-sonnet-5-5'?[0.08*n,0.15*n]:[0.15*n,0.3*n];
+ // Anthropic bills in US dollars; euro values are a rough conversion.
+ return cloudText(`grob geschätzt ${Math.round(lo*0.9)} bis ${Math.round(hi*0.9)} € für ${n} Firmen mit ${directModelLabel()} (Schätzung; hängt von Branche und Gebiet ab)`,`roughly €${Math.round(lo*0.9)} to €${Math.round(hi*0.9)} for ${n} companies with ${directModelLabel()} (estimate)`);
+}
+function directPanel(){
+ const key=directKey();
+ const keyRow=key?`<p style="margin:8px 0">${esc(cloudText('API-Schlüssel hinterlegt','API key saved'))} (…${esc(key.slice(-4))}). <button class="btn sec sm" type="button" data-act="directKeyDel">${esc(cloudText('Schlüssel löschen','Delete key'))}</button></p>`:`<div class="sperrrow"><input id="directKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" aria-label="${esc(cloudText('Anthropic-API-Schlüssel','Anthropic API key'))}"><button class="btn pri sm" type="button" data-act="directKeySave">${esc(cloudText('Speichern','Save'))}</button></div>`;
+ const model=directModel();
+ return notice(key?'info':'warn',cloudText('Direkt hier recherchieren','Research right here'),`<p style="margin:8px 0">${esc(cloudText('Claude sucht in diesem Tab mit deinem eigenen Anthropic-API-Schlüssel. Kein Wechsel in den Claude-Chat nötig.','Claude searches in this tab with your own Anthropic API key. No need to switch to the Claude chat.'))}</p>${keyRow}<p style="margin:10px 0 0"><label for="directModel" style="color:var(--ink-2)">${esc(cloudText('Modell','Model'))}</label> <select id="directModel" style="font:13px var(--font);padding:6px 10px;border:1px solid var(--rule-2);border-radius:5px;background:var(--sheet);color:var(--ink)"><option value="claude-opus-5-5"${model==='claude-opus-5-5'?' selected':''}>Claude Opus 5.5</option><option value="claude-sonnet-5-5"${model==='claude-sonnet-5-5'?' selected':''}>${esc(cloudText('Claude Sonnet 5.5 (günstiger)','Claude Sonnet 5.5 (cheaper)'))}</option></select></p><p class="small" id="directHint" style="margin:10px 0 0">${esc(cloudText('Der Schlüssel bleibt nur in diesem Browser und geht direkt an Anthropic, nie an unseren Server. Kosten laufen über dein Anthropic-Konto: ','The key stays in this browser only and goes straight to Anthropic, never to our server. Costs are billed to your Anthropic account: ')+directEstimate()+'.')}</p>`);
+}
 function cloudStatus(){
  const connected=cloudIsConnected(),name=cloudProviderName();
+ if(cloudProvider==='direct'){
+  $('#acct').className='who '+(connected?'ok':'bad');
+  $('#acctLbl').textContent=connected?cloudText('API-Schlüssel hinterlegt','API key saved'):cloudText('API-Schlüssel fehlt','API key missing');
+  $('#acctMail').textContent='';$('#ver').textContent='Anrufliste Web';
+  $('#setup').innerHTML=directPanel();
+  updateRunBtn();return;
+ }
  $('#acct').className='who '+(connected?'ok':'bad');
  $('#acctLbl').textContent=connected?cloudText(`${name} verbunden`,`${name} connected`):cloudText(`${name} verbinden`,`Connect ${name}`);
  $('#acctMail').textContent='';$('#ver').textContent='Anrufliste Web';
  $('#setup').innerHTML=connected?'':notice('info',cloudText(`Dein eigenes ${name} verbinden`,`Connect your own ${name}`),esc(cloudProvider==='openai'?cloudText('Füge die Anrufliste einmal als persönliches MCP-Plugin in ChatGPT hinzu. Im Browser recherchierst du anschließend in ChatGPT Work. Derselbe Server lässt sich auch in deinem vorhandenen Codex-Client verbinden.','Add Anrufliste as a personal MCP plugin in ChatGPT. Use ChatGPT Work for browser research. The same server also works with your existing Codex client.'):cloudText('Einmal den Anrufliste-Connector in deinem Claude-Konto hinzufügen und die Verbindung hier bestätigen. Danach hier den Auftrag erstellen und in deinem Claude-Tab recherchieren lassen.','Add the Anrufliste connector to your Claude account once and confirm the connection here. Then create a brief here and research in your own Claude tab.')),`<button class="btn pri sm" data-act="login">${esc(cloudText(`${name} verbinden`,`Connect ${name}`))}</button>`);
  updateRunBtn();
 }
-function cloudPublic(j){if(!j)return null;return {...j,state:j.state==='waiting'?'running':j.state,phase:j.state==='waiting'?'prepare':j.state==='running'?'research':null,excel:j.firms.length?'Anrufliste.xlsx':null,cols:cloudCols(j),listId:j.id,log:[],endedAt:['done','cancelled'].includes(j.state)?j.updatedAt:null}}
+function cloudPublic(j){if(!j)return null;const mine=j.id===directJobId,active=['waiting','running'].includes(j.state);return {...j,state:j.state==='waiting'?'running':j.state,phase:mine&&active?directPhase:j.state==='waiting'?'prepare':j.state==='running'?'research':null,excel:j.firms.length?'Anrufliste.xlsx':null,cols:cloudCols(j),listId:j.id,log:mine?directLog:[],endedAt:['done','cancelled'].includes(j.state)?j.updatedAt:null}}
 function cloudCols(j){return {verbund:'Verbund/Gruppe',signal:'Kaufsignal',konkurrenz:'Anbieter schon da?',extra:[...new Set((j.firms||[]).flatMap(f=>Object.keys(f.extra||{})))].slice(0,8).map(k=>[k,k])}}
 function cloudConnectionStatus(){
  $('#connectorState').textContent=cloudIsConnected()?cloudText(`${cloudProviderName()} verbunden. Du kannst den Dialog schließen.`,`${cloudProviderName()} connected. You can close this dialog.`):cloudText(`Warte auf die erste Verbindung aus ${cloudProviderName()}.`,`Waiting for the first connection from ${cloudProviderName()}.`);
@@ -39,12 +68,15 @@ async function cloudTick(){
   cloudConnectionStatus();
   if(snapshot!==lastSnapshot){
    lastSnapshot=snapshot;job=cloudPublic(data.job);savedLists=(data.lists||[]).map(x=>({...x,file:'Anrufliste.xlsx'}));
-   renderJob();renderNav();
-   const active=data.job&&['waiting','running'].includes(data.job.state);$('#cloudHandoff').classList.toggle('hide',!active);
-   if(active){
+   renderJob();renderNav();renderDirectCost();
+   const active=data.job&&['waiting','running'].includes(data.job.state);
+   const directHere=active&&directRunning&&data.job.id===directJobId,interrupted=active&&!directHere&&lsGet(DIRECT_JOB)===data.job.id;
+   $('#cloudHandoff').classList.toggle('hide',!active||directHere);
+   if(directHere)$('#stateTxt').textContent=cloudText('Claude recherchiert direkt hier im Browser. Tab offen lassen, solange die Recherche läuft. Firmen erscheinen unten live.','Claude is researching right here in your browser. Keep this tab open while it runs. Companies appear below live.');
+   else if(active){
     cloudPrompt=`Nutze meinen Anrufliste-Connector bzw. mein Anrufliste-Plugin. Rufe get_research_brief mit job_id "${data.job.id}" auf. Recherchiere die darin beschriebene Zielgruppe mit Websuche und lies die öffentlichen Firmenwebsites. Speichere belegte Firmen nach je 3–5 mit save_companies für diesen Auftrag. Verwende nur belegte Angaben; fehlende Werte: –. Schließe mit finish_research ab und speichere einen konkreten Gesprächsleitfaden. Niemanden kontaktieren und keine Formulare absenden.`;
     $('#cloudPrompt').value=cloudPrompt;
-    $('#stateTxt').textContent=data.job.state==='waiting'?cloudText(`Auftrag bereit. Öffne ihn in deinem eigenen ${cloudClientName()}-Tab.`,`Brief ready. Open it in your own ${cloudClientName()} tab.`):cloudText('Dein verbundenes Konto recherchiert. Gespeicherte Firmen erscheinen hier.','Your connected account is researching. Saved companies appear here.');
+    $('#stateTxt').textContent=interrupted?cloudText('Die Recherche in diesem Browser wurde unterbrochen (Seite neu geladen oder Tab geschlossen). Bitte abbrechen und neu starten oder unten im Claude-Chat fortsetzen.','The research in this browser was interrupted (page reloaded or tab closed). Cancel and start again, or continue in the Claude chat below.'):data.job.state==='waiting'?cloudText(`Auftrag bereit. Öffne ihn in deinem eigenen ${cloudClientName()}-Tab.`,`Brief ready. Open it in your own ${cloudClientName()} tab.`):cloudText('Dein verbundenes Konto recherchiert. Gespeicherte Firmen erscheinen hier.','Your connected account is researching. Saved companies appear here.');
    }
   }
  }catch(e){$('#setup').innerHTML=notice('warn',cloudText('Verbindung unterbrochen','Connection interrupted'),esc(e.message))}
@@ -63,10 +95,78 @@ function cloudDialog(){
 }
 async function showConnector(){try{const result=await api('/api/connection');if(result.error)throw Error(result.error);connectorUrl=result.url;connectorLegacyUrl=result.legacyUrl||'';$('#connectorUrl').value=connectorUrl;cloudDialog();$('#connectorDialog').showModal();await cloudTick()}catch(e){$('#errorBox').innerHTML=notice('bad','Verbindung fehlgeschlagen',esc(e.message))}}
 async function copyValue(value,feedback){try{await navigator.clipboard.writeText(value);feedback.textContent=cloudText('Kopiert.','Copied.');return true}catch{feedback.textContent=cloudText('Bitte den Text markieren und manuell kopieren.','Please select and copy the text manually.');return false}}
+// ---------- Direct research in this browser ----------
+function dlog(kind,text){
+ const entry={kind,text:String(text).slice(0,400)};directLog.push(entry);
+ while(directLog.length>200)directLog.shift();
+ if(typeof job!=='undefined'&&job&&job.id===directJobId&&view==='job')addLog(entry);
+}
+function renderDirectCost(){
+ const box=$('#directCost');if(!box)return;
+ const show=job&&job.id===directJobId&&(directCostSum||directError);
+ box.hidden=!show;if(!show)return;
+ const c=directCostSum,searches=c?`${c.searches} ${cloudText(c.searches===1?'Websuche':'Websuchen','web searches')}`:'';
+ const cost=c?(directDone||!directRunning?cloudText(`Kosten dieser Liste: ca. ${usd(c.usd)} $ (Tokens + ${searches}, laut Anthropic-Preisliste; maßgeblich ist deine Anthropic-Abrechnung).`,`Cost of this list: about $${usd(c.usd)} (tokens + ${searches}, at Anthropic list prices; your Anthropic bill is authoritative).`):cloudText(`Kosten bisher: ca. ${usd(c.usd)} $ (${searches}).`,`Cost so far: about $${usd(c.usd)} (${searches}).`)):'';
+ box.innerHTML=(directError?`<b style="color:var(--red)">${esc(directError)}</b><br>`:'')+esc(cost);
+}
+async function directPost(path,data){
+ const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ const body=await r.json().catch(()=>({}));
+ if(!r.ok||body.error)throw Error(body.error||('HTTP '+r.status));
+ return body;
+}
+async function directGet(path){const r=await fetch(path);const body=await r.json().catch(()=>({}));if(!r.ok||body.error)throw Error(body.error||('HTTP '+r.status));return body}
+// Called by run() before /api/run: in direct mode a key is required.
+function cloudBeforeRun(){
+ if(cloudProvider!=='direct')return true;
+ if(directRunning){$('#errorBox').innerHTML=notice('warn',cloudText('Recherche läuft bereits','Research already running'),esc(cloudText('Bitte warten oder die laufende Recherche abbrechen.','Please wait or cancel the running research.')));return false}
+ if(!directKey()){$('#errorBox').innerHTML=notice('warn',cloudText('API-Schlüssel fehlt','API key missing'),esc(cloudText('Bitte oben deinen Anthropic-API-Schlüssel eintragen oder „Claude-Chat (Connector, kostenlos)“ wählen.','Please enter your Anthropic API key above or choose “Claude chat (connector, free)”.')));$('#directKeyInput')?.focus();return false}
+ if(!window.AnrufDirect){$('#errorBox').innerHTML=notice('bad',cloudText('Recherche-Modul nicht geladen','Research module not loaded'),esc(cloudText('Bitte die Seite neu laden.','Please reload the page.')));return false}
+ return true;
+}
+// Called by run() after /api/run created the job.
+function cloudAfterRun(created){if(cloudProvider==='direct'&&created&&created.id)startDirect(created.id)}
+async function startDirect(id){
+ const D=window.AnrufDirect;
+ directJobId=id;directRunning=true;directDone=false;directLog=[];directPhase='prepare';directCostSum=null;directError='';
+ directCtl=new AbortController();lsSet(DIRECT_JOB,id);
+ lastSnapshot='';
+ dlog('info',cloudText(`Recherche startet direkt hier im Browser mit ${directModelLabel()}.`,`Research starts right here in your browser with ${directModelLabel()}.`));
+ try{
+  const result=await D.runResearch(id,{
+   client:D.createClient(directKey()),model:directModel(),signal:directCtl.signal,
+   log:dlog,onCost:c=>{directCostSum=c;renderDirectCost()},onPhase:p=>{directPhase=p;lastSnapshot='';cloudTick()},
+   server:{brief:id=>directPost('/api/brief',{id}),save:(id,companies)=>directPost('/api/save',{id,companies}),finish:(id,summary,guide)=>directPost('/api/finish',{id,summary,guide}),list:id=>directGet('/api/list?id='+encodeURIComponent(id))}
+  });
+  directCostSum=result.cost;directDone=true;
+  dlog('text',cloudText(`Fertig: ${result.total} Firmen, Kosten ca. ${usd(result.cost.usd)} $.`,`Done: ${result.total} companies, cost about $${usd(result.cost.usd)}.`));
+ }catch(e){
+  const d=D.describeError(e);
+  if(d.code!=='aborted'){
+   directError=d.message;dlog('warn',d.message);
+   $('#errorBox').innerHTML=notice('bad',cloudText('Recherche gestoppt','Research stopped'),esc(d.message)+'<br>'+esc(cloudText('Bis dahin gefundene Firmen bleiben in der Liste.','Companies found so far stay in the list.')));
+   await directPost('/api/cancel',{}).catch(()=>{});
+  }else dlog('warn',cloudText('Recherche abgebrochen.','Research cancelled.'));
+ }finally{
+  directRunning=false;directCtl=null;lsSet(DIRECT_JOB,'');lastSnapshot='';
+  await cloudTick();renderDirectCost();
+ }
+}
 window.addEventListener('DOMContentLoaded',()=>{
  cloudApplyProvider();
  $('#cloudProvider').onchange=()=>{cloudProvider=$('#cloudProvider').value;try{localStorage.setItem('research-provider',cloudProvider)}catch{}lastSnapshot='';cloudApplyProvider();cloudTick()};
  $('#langBtn').addEventListener('click',cloudApplyProvider);
+ // Cancelling also stops the browser research immediately (no further API calls).
+ const keyToggle=$('#keyToggle').onclick;$('#keyToggle').onclick=()=>{if(cloudProvider!=='direct')return keyToggle&&keyToggle();setView('new');$('#directKeyInput')?.focus()};
+ const cancel=$('#cancelBtn').onclick;$('#cancelBtn').onclick=()=>{directCtl?.abort();return cancel&&cancel()};
+ document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-act]');if(!a)return;
+  if(a.dataset.act==='directKeySave'){const v=($('#directKeyInput')?.value||'').trim();if(!v)return;lsSet(DIRECT_KEY,v);$('#errorBox').innerHTML='';cloudStatus()}
+  if(a.dataset.act==='directKeyDel'){lsSet(DIRECT_KEY,'');cloudStatus()}
+ });
+ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='directKeyInput'){e.preventDefault();document.querySelector('[data-act="directKeySave"]')?.click()}});
+ document.addEventListener('change',e=>{if(e.target.id==='directModel'){lsSet(DIRECT_MODEL,e.target.value);const h=$('#directHint');if(h)cloudStatus()}});
+ $('#anzahl')?.addEventListener('input',()=>{const h=$('#directHint');if(h&&cloudProvider==='direct')h.textContent=cloudText('Der Schlüssel bleibt nur in diesem Browser und geht direkt an Anthropic, nie an unseren Server. Kosten laufen über dein Anthropic-Konto: ','The key stays in this browser only and goes straight to Anthropic, never to our server. Costs are billed to your Anthropic account: ')+directEstimate()+'.'});
  $('#closeConnector').onclick=()=>$('#connectorDialog').close();
  $('#copyConnector').onclick=()=>copyValue(connectorUrl,$('#connectorState'));$('#checkConnector').onclick=()=>cloudTick();
  $('#cloudResearch').onclick=async()=>{
