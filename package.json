@@ -1,0 +1,12 @@
+{
+  "name": "anrufliste",
+  "version": "0.1.0",
+  "description": "Cold-call lists researched by your own Claude Code: describe your target companies, get a ready-to-call Excel sheet with decision makers, direct lines and buying signals.",
+  "bin": { "anrufliste": "bin/anrufliste.js" },
+  "files": ["bin", "public", "skill", "README.md", "LICENSE"],
+  "engines": { "node": ">=18" },
+  "keywords": ["claude", "claude-code", "sales", "lead-generation", "cold-calling", "prospecting", "excel"],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/JasonGDG/anrufliste-app.git" },
+  "scripts": { "start": "node bin/anrufliste.js" }
+}
