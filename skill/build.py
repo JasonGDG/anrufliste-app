@@ -215,7 +215,7 @@ def laden(ordner, auftrag):
             if r["firma"] == STRICH:
                 continue
             k = domain(r["website"]) or re.sub(r"\W", "", r["firma"].lower())
-            if k in ausschluss:
+            if k in ausschluss or re.sub(r"\W", "", r["firma"].lower()) in ausschluss:
                 print("schon früher geliefert:", r["firma"])
                 continue
             if k in seen:

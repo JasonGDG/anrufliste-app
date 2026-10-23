@@ -251,7 +251,8 @@ function readFirms(dir, useCache = false) {
       const ex = r0.extra && typeof r0.extra === 'object' ? r0.extra : {};
       r.extra = Object.fromEntries(Object.entries(ex).map(([k, v]) => [k, leer(v)]));
       const key = domain(r.website) || r.firma.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
-      if (ausschluss.has(key) || seen.has(key)) continue;
+      const nameKey = r.firma.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
+      if (ausschluss.has(key) || ausschluss.has(nameKey) || seen.has(key)) continue;
       seen.add(key);
       const n = maZahl(r.mitarbeiter), min = auftrag.min_mitarbeiter;
       r.stufe = min && n !== null && n < min ? 'C' : r.ansprechpartner !== STRICH ? (r.tel_ansprechpartner !== STRICH ? 'A' : 'B') : 'C';
@@ -308,8 +309,14 @@ function listDate(id) {
   if (m) return new Date(m[1] + 'T00:00:00').getTime();
   try { return fs.statSync(path.join(LISTEN_DIR, id)).mtimeMs; } catch { return Date.now(); }
 }
+// Nur Ordner, die nachweislich von der Anrufliste stammen (Datumsname + auftrag.json oder data/) – nie fremde Ordner löschen
+function isListDir(id) {
+  if (!/^\d{4}-\d{2}-\d{2}-/.test(id)) return false;
+  const dir = path.join(LISTEN_DIR, id);
+  return fs.existsSync(path.join(dir, 'auftrag.json')) || fs.existsSync(path.join(dir, 'data'));
+}
 function deleteList(id) {
-  if (!listDirs().includes(id)) return false;
+  if (!listDirs().includes(id) || !isListDir(id)) return false;
   if (job && job.state === 'running' && job.dir && path.basename(job.dir) === id) return false;
   fs.rmSync(path.join(LISTEN_DIR, id), { recursive: true, force: true });
   return true;
