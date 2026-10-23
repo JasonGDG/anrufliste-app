@@ -278,7 +278,7 @@ const EN = {
   companies: 'companies', partial: 'The companies found so far are in the Excel file and won\'t come up again next time.',
   partialDl: 'Download partial list', cPrio: 'Prio', cStufe: 'Tier', cFirma: 'Company', cAP: 'Contact', cRolle: 'Role',
   cTelAP: 'Direct line', cTelZ: 'Switchboard', cMail: 'Email', cWeb: 'Website', cMA: 'Employees', cMAs: 'Sure?',
-  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
+  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
 };
 let lang = 'de';
 try { lang = localStorage.getItem('lang') || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en'); } catch {}
@@ -301,7 +301,7 @@ Object.assign(DE, {
   companies: 'Firmen', partial: 'Die bis dahin gefundenen Firmen stehen unten in der Excel und kommen beim nächsten Mal nicht doppelt.',
   partialDl: 'Teilliste herunterladen', cPrio: 'Prio', cStufe: 'Stufe', cFirma: 'Firma', cAP: 'Ansprechpartner', cRolle: 'Rolle',
   cTelAP: 'Telefon Ansprechpartner', cTelZ: 'Telefon Zentrale', cMail: 'E-Mail', cWeb: 'Website', cMA: 'Mitarbeiter', cMAs: 'sicher?',
-  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von',
+  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
 });
 const t = k => (lang === 'en' ? EN[k] : DE[k]) ?? DE[k] ?? k;
 function applyLang() {
@@ -348,13 +348,15 @@ function renderStatus() {
     h = notice('info', t('loginTitle'), esc(t('loginTxt')) + wait,
       `<button class="btn pri sm" data-act="login" ${loggingIn ? 'disabled' : ''}>${esc(t('login'))}</button>${recheck}`);
   }
+  if (st.installed && st.claudeTooOld)
+    h += notice('warn', t('oldTitle'), `${esc(t('oldTxt'))} <code>claude update</code>`, recheck);
   if (st.installed && !st.python)
     h += notice('warn', t('pyTitle'), `${esc(t('pyTxt'))} <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">${esc(t('pyLink'))}</a>`, recheck);
   $('#setup').innerHTML = h;
   updateRunBtn();
 }
 function updateRunBtn() {
-  const ready = st && st.installed && st.loggedIn && st.python;
+  const ready = st && st.installed && st.loggedIn && st.python && !st.claudeTooOld;
   $('#runBtn').disabled = !ready || (job && job.state === 'running');
 }
 document.addEventListener('click', e => {
@@ -437,18 +439,19 @@ function renderJob() {
   if (!running) loadLists();
 }
 
+let loginChecked = null;
 function renderError() {
   const e = job && job.state === 'error' && job.error;
   if (!e) { $('#errorBox').innerHTML = ''; return; }
   const retry = `<button class="btn sec sm" data-act="retry">${esc(t('retry'))}</button>`;
-  const partial = firms.length && job.excel ? `<br>${esc(t('partial'))}` : '';
+  const partial = (job.firms || []).length && job.excel ? `<br>${esc(t('partial'))}` : '';
   if (e.code === 'login') {
     $('#errorBox').innerHTML = notice('bad', t('eLogin'), esc(t('eLoginTxt')) + partial, `<button class="btn pri sm" data-act="login">${esc(t('login'))}</button>${retry}`);
-    refreshStatus(true);
+    if (loginChecked !== job.id) { loginChecked = job.id; refreshStatus(true); }
   } else if (e.code === 'limit') {
     $('#errorBox').innerHTML = notice('warn', t('eLimit'), `${esc(t('eLimitTxt'))}<code>${esc(e.message)}</code>${partial}`);
   } else {
-    const title = e.code === 'noexcel' ? t('eNoexcel') : e.code === 'missing' ? t('eMissing') : t('eCrash');
+    const title = e.code === 'noexcel' ? t('eNoexcel') : e.code === 'missing' ? t('eMissing') : e.code === 'old' ? t('oldTitle') : e.code === 'python' ? t('pyTitle') : t('eCrash');
     $('#errorBox').innerHTML = notice('bad', title, `<code>${esc(e.message)}</code>${partial}`, retry);
   }
 }
@@ -556,20 +559,6 @@ async function loadLists() {
 
 }
 
-document.addEventListener('click', async e => {
-  if (true) return;
-  const b = e.target.closest('[data-view]');
-  if (!b) return;
-  if (job && job.state === 'running') return;
-  const r = await api('/api/list?id=' + encodeURIComponent(b.dataset.view));
-  if (!r.firms) return;
-  viewing = r.id; cols = r.cols; firms = r.firms; shown = new Set(firms.map(f => f.website + '|' + f.firma)); open.clear();
-  $('#sheet').classList.remove('hide'); $('#sheet').open = true;
-  $('#sheetTitle').textContent = r.titel;
-  renderFirms(); loadLists();
-  $('#sheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
-
 // ---------- Einstellungen ----------
 $('#keySave').onclick = async () => {
   const key = $('#apikey').value.trim(); if (!key) return;
@@ -594,16 +583,8 @@ function connect() {
   es.addEventListener('status', e => { st = JSON.parse(e.data); loggingIn = false; renderStatus(); });
   es.addEventListener('loginUrl', e => { loginUrl = JSON.parse(e.data); renderStatus(); });
 }
-window.addEventListener('focus', () => { if (st && (!st.installed || !st.loggedIn || !st.python)) refreshStatus(true); });
+window.addEventListener('focus', () => { if (st && (!st.installed || !st.loggedIn)) refreshStatus(true); });
 
-applyLang();
-refreshStatus().then(loadLists);
-connect();
-</script>
-</body>
-</html>
-
-<script>
 function renderNav() {
   const live = job ? `<button class="item live ${job.state === 'running' ? '' : 'fertig'}" type="button" data-nav="job"><span class="n">${esc(jobTitle())}</span><span class="k">${(job.firms || []).length}</span></button>` : '';
   $('#nav').innerHTML = live + savedLists.filter(x => !job || x.id !== job.listId).map(x =>
@@ -628,4 +609,10 @@ $('#themeBtn').onclick = () => {
 };
 themeLabel();
 $('#langBtn').addEventListener('click', themeLabel);
+
+applyLang();
+refreshStatus().then(loadLists);
+connect();
 </script>
+</body>
+</html>

@@ -4,6 +4,7 @@ Aufrufe:
   python3 build.py neu "<Titel>"        legt ~/Anruflisten/<datum>-<titel>/ an, gibt den Pfad aus
   python3 build.py ausschluss <ordner>  schreibt <ordner>/ausschluss_domains.txt (alle früher gelieferten Firmen)
   python3 build.py excel <ordner>       baut <ordner>/<Titel>-Anrufliste-<datum>.xlsx aus <ordner>/data/*.json
+  python3 build.py check -              richtet openpyxl ein und meldet "ok"
 """
 import datetime, glob, json, os, re, subprocess, sys
 
@@ -17,7 +18,8 @@ except ImportError:
         sys.exit(f"openpyxl ließ sich nicht installieren (Ordner {venv} löschen und erneut versuchen)")
     try:
         if not os.path.exists(py):
-            subprocess.check_call([sys.executable, "-m", "venv", venv])
+            if subprocess.call([sys.executable, "-m", "venv", venv]) != 0:
+                sys.exit("Python kann keine eigene Umgebung anlegen. Unter Debian/Ubuntu einmal 'sudo apt install python3-venv' ausführen, dann erneut versuchen.")
         if subprocess.call([py, "-c", "import openpyxl"], stderr=subprocess.DEVNULL) != 0:
             subprocess.check_call([py, "-m", "pip", "install", "-q", "--disable-pip-version-check", "openpyxl"])
     except (subprocess.CalledProcessError, OSError) as e:
@@ -392,6 +394,9 @@ def ausschluss(ordner):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "check":
+        print("ok")  # openpyxl ist oben schon importiert bzw. eingerichtet
+        sys.exit(0)
     if len(sys.argv) != 3 or sys.argv[1] not in ("neu", "ausschluss", "excel"):
         sys.exit(__doc__)
     {"neu": neu, "ausschluss": ausschluss, "excel": excel}[sys.argv[1]](os.path.expanduser(sys.argv[2]) if sys.argv[1] != "neu" else sys.argv[2])

@@ -20,11 +20,11 @@ Companies are never delivered twice: every list remembers what came before. Drop
 
 ## Requirements
 
-- [Claude Code](https://code.claude.com/docs/en/setup), signed in with your own account (Pro/Max plan) or an Anthropic API key
+- [Claude Code](https://code.claude.com/docs/en/setup) 2.1.257 or newer, signed in with your own account (Pro/Max plan) or an Anthropic API key
 - Node.js 18+ (for `npx`)
 - Python 3 (builds the Excel file, installs `openpyxl` into its own cache on first run)
 
-The app checks all three on start and tells you what's missing.
+The app checks Claude Code (and its version) and Python on start and tells you what's missing. On the first list it sets up the spreadsheet library once (needs internet; on Debian/Ubuntu `python3-venv` must be installed).
 
 ## Your account, your data
 
@@ -34,7 +34,7 @@ Anrufliste starts your own, unmodified Claude Code installation; it never touche
 
 Everything runs on `127.0.0.1`. The local server rejects requests from other websites.
 
-Claude only gets what research needs: web search, reading web pages, sub-agents, and writing files inside the folder of the current list. It gets no shell; the app creates the folder and builds the Excel file itself. Your own Claude Code hooks and settings are not loaded for these runs. It never submits forms or contacts anyone.
+Claude only gets what research needs: web search, reading web pages, sub-agents, and writing files inside the folder of the current list. It gets no shell; the app creates the folder and builds the Excel file itself. Your own Claude Code hooks, plugins, permission rules and auto-memory are not loaded for these runs, and reading files outside the list folder is blocked. It never submits forms or contacts anyone.
 
 ## Good to know
 
@@ -49,10 +49,6 @@ npx anrufliste --port 4000     # different port
 npx anrufliste --no-open       # don't open the browser
 ANRUFLISTEN_DIR=~/Leads npx anrufliste   # different folder for lists
 ```
-
-## Without the app
-
-The research runs as a Claude Code skill (`skill/`). You can also copy it to `~/.claude/skills/anrufliste/` and type `/anrufliste logistics companies around Munich, 40 companies` in Claude Code.
 
 ## License
 

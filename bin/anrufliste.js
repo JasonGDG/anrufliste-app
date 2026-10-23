@@ -67,6 +67,7 @@ function findClaude() {
 function claudeEnv() {
   const env = { ...process.env };
   for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT']) delete env[k];
+  env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = '1';
   const key = readConfig().apiKey;
   if (key) env.ANTHROPIC_API_KEY = key;
   return env;
@@ -89,6 +90,8 @@ function collect(p, timeout) {
   return new Promise(resolve => {
     let out = '', err = '';
     const t = setTimeout(() => killTree(p), timeout);
+    p.stdout && p.stdout.setEncoding('utf8');
+    p.stderr && p.stderr.setEncoding('utf8');
     p.stdout && p.stdout.on('data', d => out += d);
     p.stderr && p.stderr.on('data', d => err += d);
     p.on('error', e => { clearTimeout(t); resolve({ code: -1, out, err: e.message, missing: e.code === 'ENOENT' }); });
@@ -139,9 +142,21 @@ function build(cmd, arg, timeout = 180000) {
 
 // ---------- Status (kurz zwischengespeichert, gleichzeitige Abfragen zusammengefasst) ----------
 
+// Ab dieser Version sperrt Claude Code Lesezugriffe außerhalb des Arbeitsordners zuverlässig
+const MIN_CLAUDE = [2, 1, 257];
+function versionOk(text) {
+  const m = String(text).match(/(\d+)\.(\d+)\.(\d+)/);
+  if (!m) return false;
+  const v = m.slice(1).map(Number);
+  for (let i = 0; i < 3; i++) if (v[i] !== MIN_CLAUDE[i]) return v[i] > MIN_CLAUDE[i];
+  return true;
+}
+
 let statusCache = null, statusAt = 0, statusRun = null;
-function status(fresh = false) {
-  if (!fresh && statusCache && Date.now() - statusAt < 5000) return Promise.resolve(statusCache);
+async function status(fresh = false) {
+  if (!fresh && statusCache && Date.now() - statusAt < 5000) return statusCache;
+  // eine laufende Abfrage kann von vor dem Login stammen: bei fresh danach neu fragen
+  if (statusRun) { const r = await statusRun; if (!fresh) return r; }
   if (statusRun) return statusRun;
   statusRun = (async () => {
     const [v, python] = await Promise.all([runClaude(['--version']), findPython()]);
@@ -151,7 +166,7 @@ function status(fresh = false) {
       const a = await runClaude(['auth', 'status']);
       let j = {};
       try { j = JSON.parse(a.out); } catch {}
-      s = { ...s, claudeVersion: v.out.trim(), loggedIn: !!j.loggedIn || !!cfg.apiKey, email: j.email || '',
+      s = { ...s, claudeVersion: v.out.trim(), claudeTooOld: !versionOk(v.out), loggedIn: !!j.loggedIn || !!cfg.apiKey, email: j.email || '',
         authMethod: cfg.apiKey ? 'api-key' : (j.authMethod || '') };
     }
     statusCache = s; statusAt = Date.now();
@@ -209,7 +224,7 @@ function columns(a) {
 }
 
 const fileCache = new Map(); // letzter gültiger Stand je Datei, falls gerade halb geschrieben
-function readFirms(dir) {
+function readFirms(dir, useCache = false) {
   let files = [];
   try { files = fs.readdirSync(path.join(dir, 'data')).filter(f => f.endsWith('.json')).sort(); } catch { return []; }
   let ausschluss = new Set();
@@ -221,9 +236,8 @@ function readFirms(dir) {
     let arr;
     try {
       arr = JSON.parse(fs.readFileSync(p, 'utf8'));
-      if (Array.isArray(arr)) fileCache.set(p, arr);
-    } catch {}
-    arr = fileCache.get(p);
+      if (Array.isArray(arr) && useCache) fileCache.set(p, arr);
+    } catch { arr = useCache ? fileCache.get(p) : null; }
     if (!Array.isArray(arr)) continue;
     for (const r0 of arr) {
       if (!r0 || typeof r0 !== 'object') continue;
@@ -274,13 +288,20 @@ let loginProc = null;
 const ALLOWED = ['WebSearch', 'WebFetch', 'Agent', 'Task', 'TodoWrite', 'mcp__exa__web_search_exa', 'mcp__exa__web_fetch_exa'];
 const DISALLOWED = ['Bash', 'BashOutput', 'KillShell', 'KillBash', 'NotebookEdit', 'Skill', 'SlashCommand'];
 
+// Fester Riegel gegen Prompt-Injection aus Webseiten: nichts außerhalb des Auftragsordners lesen
+const GUARD = { permissions: {
+  blockReadsOutsideWorkingDirectories: true,
+  deny: ['Read(~/.anrufliste-app/**)', 'Read(~/.ssh/**)', 'Read(~/.claude/**)', 'Read(~/.aws/**)', 'Read(~/.config/**)',
+    'Read(~/.gnupg/**)', 'Read(~/.netrc)', 'Read(//etc/**)'],
+} };
+
 function slugTitel(p) {
   return `${p.ziel} ${p.region}`.replace(/\s+/g, ' ').trim().slice(0, 50);
 }
 
 function buildPrompt(p, dir) {
   const recherche = fs.readFileSync(path.join(SKILL, 'recherche-auftrag.md'), 'utf8')
-    .replace(/; wenn eine Seite blockt, curl[^.\n]*/, '');
+    .replace(/; wenn eine Seite blockt, curl[^\n]*?<url>/, '');
   const values = {
     APP_ANGEBOT: p.angebot, ZIEL: p.ziel, REGION: p.region, GROESSE: p.groesse || 'keine Vorgabe',
     APP_ANZAHL: String(p.anzahl), EXTRA: p.extra || 'keine', APP_ORDNER: dir,
@@ -341,12 +362,18 @@ async function startJob(params) {
   addLog(me, 'Bereitet den Auftrag vor');
 
   // Ordner und Ausschlussliste legt der Server selbst an: so ist eindeutig, wohin dieser Auftrag schreibt
+  const st = await status();
+  if (st.claudeTooOld) return finish(me, 'error', { code: 'old', message: st.claudeVersion });
   if (!pythonCmd) await findPython();
+  // beim ersten Mal richtet build.py openpyxl in einer eigenen Umgebung ein (kann bei langsamem Netz dauern)
+  const check = await build('check', '-', 300000);
+  if (check.code !== 0) return finish(me, 'error', { code: 'python', message: (check.err || check.out || 'Excel-Baukasten ließ sich nicht einrichten').trim().slice(-600) });
   const neu = await build('neu', slugTitel(params), 60000);
   const dir = neu.code === 0 ? neu.out.trim().split(/\r?\n/).pop().trim() : '';
   if (!dir || !fs.existsSync(dir)) return finish(me, 'error', { code: 'crash', message: (neu.err || neu.out || 'Ordner ließ sich nicht anlegen').trim().slice(-600) });
   me.dir = path.resolve(dir);
-  await build('ausschluss', me.dir, 120000);
+  const aus = await build('ausschluss', me.dir, 300000);
+  if (aus.code !== 0) return finish(me, 'error', { code: 'crash', message: 'Die Liste der schon gelieferten Firmen ließ sich nicht lesen, deshalb wurde nicht gestartet (sonst kämen Firmen doppelt).\n' + (aus.err || aus.out).trim().slice(-500) });
   if (me.cancelled) return finish(me, 'cancelled');
 
   let proc;
@@ -355,6 +382,7 @@ async function startJob(params) {
       // nur Projekt-Einstellungen: Hooks und Regeln aus ~/.claude/settings.json des Nutzers gehören nicht in diesen Lauf
       '-p', '--setting-sources', 'project', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits',
       '--allowedTools', ALLOWED.join(','), '--disallowedTools', DISALLOWED.join(','),
+      '--settings', JSON.stringify(GUARD),
     ], { cwd: me.dir, stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (e) {
     return finish(me, 'error', { code: 'missing', message: e.message });
@@ -365,6 +393,8 @@ async function startJob(params) {
   proc.stdin.on('error', () => {});
   proc.stdin.end(buildPrompt(params, me.dir));
 
+  proc.stdout.setEncoding('utf8');
+  proc.stderr.setEncoding('utf8');
   proc.stdout.on('data', chunk => {
     me.buf += chunk;
     let i;
@@ -414,7 +444,7 @@ function pollFiles(me) {
   if (!me.dir) return;
   const auftrag = readAuftrag(me.dir);
   const cols = columns(auftrag);
-  const firms = readFirms(me.dir);
+  const firms = readFirms(me.dir, true);
   const changed = JSON.stringify(firms) !== JSON.stringify(me.firms) || JSON.stringify(cols) !== JSON.stringify(me.cols);
   me.firms = firms; me.cols = cols;
   if (changed && me === job) send('firms', { cols, firms });
@@ -424,30 +454,39 @@ async function afterClaude(me, code) {
   clearInterval(me.timer);
   if (me.state !== 'running') return;
   if (me.spawnError) return finish(me, 'error', { code: me.spawnError.code === 'ENOENT' ? 'missing' : 'crash', message: me.spawnError.message });
-  if (me.cancelled) return finish(me, 'cancelled');
   pollFiles(me);
+  if (me.cancelled) {
+    // gefundene Firmen nicht verlieren: sie sind ab jetzt für künftige Listen gesperrt, also als Teilliste anbieten
+    if (me.firms.length) await buildExcel(me);
+    return finish(me, 'cancelled');
+  }
   const err = me.error || (code !== 0 ? classify(me.stderr) : null);
   const ok = code === 0 && !err;
 
   // Excel baut der Server; bei einem Abbruch mittendrin wird sie als Teilergebnis angeboten
   if (me.firms.length) {
-    me.phase = 'excel';
-    addLog(me, 'Baut die Excel-Datei');
-    send('job', publicJob());
-    if (!readAuftrag(me.dir)) {
-      fs.writeFileSync(path.join(me.dir, 'auftrag.json'), JSON.stringify({
-        titel: slugTitel(me.params), datum: new Date().toISOString().slice(0, 10), angebot: me.params.angebot,
-        region: me.params.region,
-      }, null, 2));
-    }
-    const b = await build('excel', me.dir);
+    const b = await buildExcel(me);
     if (me.state !== 'running') return;
-    me.excel = b.code === 0 ? findExcel(me.dir) : null;
     if (!me.excel && ok) return finish(me, 'error', { code: 'noexcel', message: (b.err || b.out).trim().slice(-600) });
   }
   if (ok && me.excel) return finish(me, 'done');
   if (ok) return finish(me, 'error', { code: 'noexcel', message: me.summary || 'Claude ist fertig, hat aber keine Firmen gespeichert.' });
   finish(me, 'error', err || { code: 'crash', message: (me.stderr || `Claude wurde mit Code ${code} beendet.`).trim().slice(-600) });
+}
+
+async function buildExcel(me) {
+  me.phase = 'excel';
+  addLog(me, 'Baut die Excel-Datei');
+  if (me === job) send('job', publicJob());
+  if (!readAuftrag(me.dir)) {
+    fs.writeFileSync(path.join(me.dir, 'auftrag.json'), JSON.stringify({
+      titel: slugTitel(me.params), datum: new Date().toISOString().slice(0, 10), angebot: me.params.angebot,
+      region: me.params.region,
+    }, null, 2));
+  }
+  const b = await build('excel', me.dir);
+  me.excel = b.code === 0 ? findExcel(me.dir) : null;
+  return b;
 }
 
 function finish(me, state, error = null) {
@@ -459,7 +498,7 @@ function finish(me, state, error = null) {
   me.phase = null;
   if (me.proc) killTree(me.proc); // Reste der Prozessgruppe aufräumen
   if (me === job) send('job', publicJob());
-  if (me.onEnd) me.onEnd();
+  if (me.onEnd && state === 'cancelled') me.onEnd();
 }
 
 function cancelJob() {
@@ -474,7 +513,8 @@ function cancelJob() {
 function startLogin() {
   if (loginProc) return { ok: true, running: true };
   const running = job && job.state === 'running' ? job : null;
-  const lp = { proc: null, out: '' };
+  const vorher = statusCache ? `${statusCache.loggedIn}|${statusCache.email}|${statusCache.authMethod}` : null;
+  const lp = { proc: null, out: '', code: null };
   try { lp.proc = spawnClaude(['auth', 'login'], { stdio: ['pipe', 'pipe', 'pipe'] }); }
   catch (e) { return { error: e.message }; }
   loginProc = lp;
@@ -487,21 +527,25 @@ function startLogin() {
   lp.proc.stderr.on('data', onData);
   lp.proc.stdin.on('error', () => {});
   const timer = setTimeout(() => killTree(lp.proc), 10 * 60 * 1000);
-  const end = async () => {
+  let fertig = false;
+  const end = async code => {
+    if (fertig) return;
+    fertig = true;
     clearTimeout(timer);
     if (loginProc === lp) loginProc = null;
     const s = await status(true);
     send('status', s);
     // Kontowechsel: der laufende Auftrag behält sonst den alten Login. Nur genau diesen neu starten,
     // und erst wenn er wirklich beendet ist.
-    if (s.loggedIn && running && job === running && running.state === 'running') {
+    const wechsel = code === 0 && s.loggedIn && `${s.loggedIn}|${s.email}|${s.authMethod}` !== vorher;
+    if (wechsel && running && job === running && running.state === 'running' && running.phase === 'research') {
       running.onEnd = () => { if (job === running) startJob(running.params); };
       running.cancelled = true;
       if (running.proc) killTree(running.proc);
     }
   };
-  lp.proc.on('error', end);
-  lp.proc.on('close', end);
+  lp.proc.on('error', () => end(-1));
+  lp.proc.on('close', code => end(code));
   return { ok: true };
 }
 
@@ -510,13 +554,13 @@ function startLogin() {
 function lists() {
   return listDirs().map(d => {
     try {
-      const dir = path.join(LISTEN_DIR, d);
-      const x = findExcel(dir);
-      if (!x) return null;
-      const a = readAuftrag(dir) || {};
-      return { id: d, titel: a.titel || d, file: path.basename(x), mtime: fs.statSync(x).mtimeMs, count: readFirms(dir).length };
+      const x = findExcel(path.join(LISTEN_DIR, d));
+      return x ? { id: d, file: path.basename(x), mtime: fs.statSync(x).mtimeMs } : null;
     } catch { return null; }
-  }).filter(Boolean).sort((a, b) => b.mtime - a.mtime).slice(0, 30);
+  }).filter(Boolean).sort((a, b) => b.mtime - a.mtime).slice(0, 50).map(l => {
+    const dir = path.join(LISTEN_DIR, l.id);
+    return { ...l, titel: (readAuftrag(dir) || {}).titel || l.id, count: readFirms(dir).length };
+  });
 }
 
 // ---------- HTTP ----------
@@ -667,6 +711,13 @@ function shutdown() {
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+process.on('SIGHUP', shutdown); // Terminalfenster geschlossen
+process.on('exit', () => {
+  // claude läuft in eigener Prozessgruppe und bekommt SIGHUP nicht mit: beim Beenden immer mitnehmen
+  for (const p of [job && job.proc, loginProc && loginProc.proc]) {
+    if (p && p.pid) { try { IS_WIN ? p.kill() : process.kill(-p.pid, 'SIGKILL'); } catch {} }
+  }
+});
 
 fs.mkdirSync(path.join(LISTEN_DIR, 'alt'), { recursive: true });
 listen(PORT_START);
