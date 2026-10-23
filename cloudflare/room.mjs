@@ -12,6 +12,7 @@ function keyDomain(url){
 export function sperrKey(value){const t=String(value||'').trim();return keyDomain(t)||t.toLowerCase().replace(/[^\p{L}\p{N}_]/gu,'')}
 export const firmKey=f=>keyDomain(f.website)||String(f.firma||'').toLowerCase().replace(/[^\p{L}\p{N}_]/gu,'');
 export const RETENTION_DAYS=183;
+export const STALE_MS=2*3600*1000;
 const DAY=86400000;
 const withKeys=j=>j&&{...j,firms:(j.firms||[]).map(f=>({...f,key:f.key||firmKey(f)}))};
 export function firm(raw){
@@ -99,6 +100,8 @@ export class ResearchRoom{
  async cleanup(now=Date.now()){
   const jobs=await this.storage.list({prefix:'job:'}),limit=now-RETENTION_DAYS*DAY;
   const expired=[...jobs.values()].filter(j=>(j.startedAt||0)<limit).map(j=>j.id);
+  // Aufträge, die 2 Stunden ohne Lebenszeichen warten oder laufen (z. B. Claude-Chat nie abgeschickt), beenden
+  for(const j of jobs.values()){if(['waiting','running'].includes(j.state)&&(j.updatedAt||j.startedAt||0)<now-STALE_MS){j.state='cancelled';j.updatedAt=now;await this.storage.put('job:'+j.id,j)}}
   await this.remove(expired);
   if(jobs.size>expired.length&&!await this.storage.getAlarm())await this.storage.setAlarm(now+DAY);
  }

@@ -221,7 +221,7 @@ tr.gesperrt .sperr{opacity:1;color:var(--red);border-color:var(--red)}
           <div class="f c1"><label for="anzahl" data-i="count">Anzahl</label><input id="anzahl" type="number" min="5" max="100" value="40"></div>
           <div class="f c3"><label for="extra"><span data-i="extra">Sonstiges</span> <i data-i="opt">optional</i></label><input id="extra" data-ph="extraPh" placeholder="z. B. nur inhabergeführt"></div>
         </form>
-        <div class="go"><button class="btn pri" id="runBtn" type="submit" form="form" data-i="run">Liste erstellen</button><span class="note" data-i="runHint">Dauert je nach Anzahl 5 bis 25 Minuten.</span></div>
+        <div class="go"><button class="btn pri" id="runBtn" type="submit" form="form" data-i="run">Liste erstellen</button><span class="note" data-i="runHint">Dauert je nach Anzahl 5 bis 25 Minuten.</span><span class="note hide" id="runBlocked"></span></div>
         <div class="steps3">
           <div><b data-i="h1t">1. Auftrag</b><span data-i="h1d">Was du verkaufst, an wen, wo.</span></div>
           <div><b data-i="h2t">2. Recherche</b><span data-i="h2d">Firmen erscheinen live, während Claude sucht.</span></div>
@@ -315,7 +315,7 @@ const EN = {
   companies: 'companies', partial: 'The companies found so far are in the Excel file and won\'t come up again next time.',
   partialDl: 'Download partial list', cPrio: 'Prio', cStufe: 'Tier', cFirma: 'Company', cAP: 'Contact', cRolle: 'Role',
   cTelAP: 'Direct line', cTelZ: 'Switchboard', cMail: 'Email', cWeb: 'Website', cMA: 'Employees', cMAs: 'Sure?',
-  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', cSperre: 'Do not call', gesperrt: 'Blocked', entsperren: 'unblock', delSure: 'Really delete?', delList: 'Delete list', sperrAdd: 'Block', sperrTitle: 'Do-not-call list', sperrHint: 'Companies that do not want to be called. They never show up in a new list. In a list, use “Block” in the last column.', sperrPh: 'Website or company name', legalTitle: 'Legal notes before calling', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
+  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', busy: 'A list is still running:', busyView: 'View', cSperre: 'Do not call', gesperrt: 'Blocked', entsperren: 'unblock', delSure: 'Really delete?', delList: 'Delete list', sperrAdd: 'Block', sperrTitle: 'Do-not-call list', sperrHint: 'Companies that do not want to be called. They never show up in a new list. In a list, use “Block” in the last column.', sperrPh: 'Website or company name', legalTitle: 'Legal notes before calling', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
 };
 let lang = 'de';
 try { lang = localStorage.getItem('lang') || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en'); } catch {}
@@ -338,7 +338,7 @@ Object.assign(DE, {
   companies: 'Firmen', partial: 'Die bis dahin gefundenen Firmen stehen unten in der Excel und kommen beim nächsten Mal nicht doppelt.',
   partialDl: 'Teilliste herunterladen', cPrio: 'Prio', cStufe: 'Stufe', cFirma: 'Firma', cAP: 'Ansprechpartner', cRolle: 'Rolle',
   cTelAP: 'Telefon Ansprechpartner', cTelZ: 'Telefon Zentrale', cMail: 'E-Mail', cWeb: 'Website', cMA: 'Mitarbeiter', cMAs: 'sicher?',
-  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', cSperre: 'Nicht anrufen', gesperrt: 'Gesperrt', entsperren: 'entsperren', delSure: 'Wirklich löschen?', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
+  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', busy: 'Es läuft noch ein Auftrag:', busyView: 'Ansehen', cSperre: 'Nicht anrufen', gesperrt: 'Gesperrt', entsperren: 'entsperren', delSure: 'Wirklich löschen?', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
 });
 const t = k => (lang === 'en' ? EN[k] : DE[k]) ?? DE[k] ?? k;
 function applyLang() {
@@ -394,12 +394,18 @@ function renderStatus() {
 }
 function updateRunBtn() {
   const ready = st && st.installed && st.loggedIn && st.python && !st.claudeTooOld;
-  $('#runBtn').disabled = !ready || (job && job.state === 'running');
+  const busy = !!(job && job.state === 'running');
+  $('#runBtn').disabled = !ready || busy;
+  // Sagen, warum der Knopf gesperrt ist, und den Ausweg direkt anbieten
+  $('#runBlocked').classList.toggle('hide', !busy);
+  document.querySelector('[data-i="runHint"]').classList.toggle('hide', busy);
+  $('#runBlocked').innerHTML = busy ? `${esc(t('busy'))} <b>${esc(jobTitle())}</b>. <a href="#" data-nav="job">${esc(t('busyView'))}</a> · <a href="#" data-act="cancelJob">${esc(t('cancel'))}</a>` : '';
 }
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-act]');
   if (!a) return;
   if (a.dataset.act === 'recheck') refreshStatus(true);
+  if (a.dataset.act === 'cancelJob') { e.preventDefault(); api('/api/cancel', { id: job && job.id }); }
   if (a.dataset.act === 'login') { loggingIn = true; loginUrl = null; renderStatus(); api('/api/login', {}); }
   if (a.dataset.act === 'retry' && lastParams) run(lastParams);
 });
