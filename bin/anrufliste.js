@@ -553,6 +553,15 @@ function finish(me, state, error = null) {
   me.error = error;
   me.endedAt = Date.now();
   me.phase = null;
+  // Dauer der Recherche in der Liste festhalten, damit sie auch später angezeigt werden kann
+  if (me.dir) {
+    try {
+      const f = path.join(me.dir, 'auftrag.json');
+      const a = JSON.parse(fs.readFileSync(f, 'utf8'));
+      a.dauer_s = Math.round((me.endedAt - me.startedAt) / 1000);
+      fs.writeFileSync(f, JSON.stringify(a, null, 2));
+    } catch {}
+  }
   if (me.proc) killTree(me.proc); // Reste der Prozessgruppe aufräumen
   if (me === job) send('job', publicJob());
   if (me.onEnd && state === 'cancelled') me.onEnd();
@@ -686,7 +695,7 @@ const server = http.createServer(async (req, res) => {
       const id = url.searchParams.get('id');
       if (!id || !listDirs().includes(id)) return json(res, 404, { error: 'not found' });
       const dir = path.join(LISTEN_DIR, id), a = readAuftrag(dir) || {};
-      return json(res, 200, { id, titel: a.titel || id, cols: columns(a), firms: readFirms(dir) });
+      return json(res, 200, { id, titel: a.titel || id, cols: columns(a), firms: readFirms(dir), dauer_s: a.dauer_s ?? null });
     }
     if (req.method === 'GET' && p === '/api/events') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });

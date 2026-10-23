@@ -118,7 +118,7 @@ export class ResearchRoom{
     await this.remove([id]);return json({ok:true});
    });
    if(p==='/api/cancel'&&request.method==='POST')return await this.ctx.blockConcurrencyWhile(async()=>{
-    const j=await this.current();if(j&&['waiting','running'].includes(j.state)){j.state='cancelled';j.updatedAt=Date.now();await this.putJob(j)}return json({ok:true});
+    const j=await this.current();if(j&&['waiting','running'].includes(j.state)){j.state='cancelled';j.updatedAt=Date.now();j.endedAt=j.updatedAt;await this.putJob(j)}return json({ok:true});
    });
    return json({error:'Nicht gefunden'},404);
   }catch(e){return json({error:e.message||'Anfrage fehlgeschlagen'},400)}
@@ -212,7 +212,7 @@ export class ResearchRoom{
    if(j.state==='cancelled')throw new ClosedError('Auftrag wurde abgebrochen.');
    // A finished list keeps its summary and call guide; a second finish must not overwrite them.
    if(j.state==='done')throw new ClosedError('Auftrag ist bereits abgeschlossen.');
-   j.summary=clean(args.summary,6000);j.guide=Object.fromEntries(Object.entries(args.guide||{}).slice(0,12).map(([k,v])=>[clean(k,100),clean(v,3000)]));j.state='done';j.updatedAt=Date.now();await this.putJob(j);return {done:true,count:j.firms.length,hinweis:'Die Firmen sind in der Web-App sichtbar. Dort ist auch der Excel-Export verfügbar.'};
+   j.summary=clean(args.summary,6000);j.guide=Object.fromEntries(Object.entries(args.guide||{}).slice(0,12).map(([k,v])=>[clean(k,100),clean(v,3000)]));j.state='done';j.updatedAt=Date.now();j.endedAt=j.endedAt||j.updatedAt;await this.putJob(j);return {done:true,count:j.firms.length,hinweis:'Die Firmen sind in der Web-App sichtbar. Dort ist auch der Excel-Export verfügbar.'};
   }
   throw Error('Unbekanntes Werkzeug.');
  }

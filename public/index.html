@@ -315,7 +315,7 @@ const EN = {
   companies: 'companies', partial: 'The companies found so far are in the Excel file and won\'t come up again next time.',
   partialDl: 'Download partial list', cPrio: 'Prio', cStufe: 'Tier', cFirma: 'Company', cAP: 'Contact', cRolle: 'Role',
   cTelAP: 'Direct line', cTelZ: 'Switchboard', cMail: 'Email', cWeb: 'Website', cMA: 'Employees', cMAs: 'Sure?',
-  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', sWaitFirst: 'Claude is researching. The first companies usually appear after 2 to 4 minutes; the log below shows what is happening.', pySetup: 'Could not set up the Excel builder', busy: 'A list is still running:', busyView: 'View', cSperre: 'Do not call', gesperrt: 'Blocked', entsperren: 'unblock', delSure: 'Really delete?', delList: 'Delete list', sperrAdd: 'Block', sperrTitle: 'Do-not-call list', sperrHint: 'Companies that do not want to be called. They never show up in a new list. In a list, use “Block” in the last column.', sperrPh: 'Website or company name', legalTitle: 'Legal notes before calling', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
+  cErr: 'Reachability', cSig: 'Signal', cEig: 'Fit', cHinweis: 'Call hint', none: 'No lists yet.', of: 'of', dauer: 'Research:', sWaitFirst: 'Claude is researching. The first companies usually appear after 2 to 4 minutes; the log below shows what is happening.', pySetup: 'Could not set up the Excel builder', busy: 'A list is still running:', busyView: 'View', cSperre: 'Do not call', gesperrt: 'Blocked', entsperren: 'unblock', delSure: 'Really delete?', delList: 'Delete list', sperrAdd: 'Block', sperrTitle: 'Do-not-call list', sperrHint: 'Companies that do not want to be called. They never show up in a new list. In a list, use “Block” in the last column.', sperrPh: 'Website or company name', legalTitle: 'Legal notes before calling', oldTitle: 'Claude Code is too old', oldTxt: 'Please update Claude Code, then check again. In a terminal:', fltReset: 'Show all', newList: 'New list', keyShort: 'API key', hTitle: 'Who do you want to call?', lead: 'Your own Claude finds matching companies with decision makers, direct lines and buying signals. Every fact with a source, no company twice.', offer: 'What do you sell?', target: 'Which companies?', region: 'Area', size: 'Size', opt: 'optional', count: 'Count', extra: 'Other', h1t: '1. Brief', h1d: 'What you sell, to whom, where.', h2t: '2. Research', h2d: 'Companies appear live while Claude searches.', h3t: '3. Call', h3d: 'View here or download as Excel.', sheetFoot: 'Click a row to see the full text.', local: 'Runs only on your computer.', offerPh: 'e.g. temporary staffing for warehouses and drivers', targetPh: 'e.g. logistics companies', regionPh: 'e.g. Munich district, 50 km around Hamburg or postcode 48', extraPh: 'e.g. owner-managed only',
 };
 let lang = 'de';
 try { lang = localStorage.getItem('lang') || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en'); } catch {}
@@ -338,7 +338,7 @@ Object.assign(DE, {
   companies: 'Firmen', partial: 'Die bis dahin gefundenen Firmen stehen unten in der Excel und kommen beim nächsten Mal nicht doppelt.',
   partialDl: 'Teilliste herunterladen', cPrio: 'Prio', cStufe: 'Stufe', cFirma: 'Firma', cAP: 'Ansprechpartner', cRolle: 'Rolle',
   cTelAP: 'Telefon Ansprechpartner', cTelZ: 'Telefon Zentrale', cMail: 'E-Mail', cWeb: 'Website', cMA: 'Mitarbeiter', cMAs: 'sicher?',
-  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', sWaitFirst: 'Claude recherchiert. Die ersten Firmen erscheinen meist nach 2 bis 4 Minuten, unten im Protokoll siehst du, was gerade passiert.', pySetup: 'Excel-Baukasten ließ sich nicht einrichten', busy: 'Es läuft noch ein Auftrag:', busyView: 'Ansehen', cSperre: 'Nicht anrufen', gesperrt: 'Gesperrt', entsperren: 'entsperren', delSure: 'Wirklich löschen?', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
+  cErr: 'Erreichbarkeit', cSig: 'Signal', cEig: 'Eignung', cHinweis: 'Gesprächshinweis', none: 'Noch keine Listen.', of: 'von', dauer: 'Recherche:', sWaitFirst: 'Claude recherchiert. Die ersten Firmen erscheinen meist nach 2 bis 4 Minuten, unten im Protokoll siehst du, was gerade passiert.', pySetup: 'Excel-Baukasten ließ sich nicht einrichten', busy: 'Es läuft noch ein Auftrag:', busyView: 'Ansehen', cSperre: 'Nicht anrufen', gesperrt: 'Gesperrt', entsperren: 'entsperren', delSure: 'Wirklich löschen?', oldTitle: 'Claude Code ist zu alt', oldTxt: 'Bitte Claude Code aktualisieren, dann erneut prüfen. Im Terminal:',
 });
 const t = k => (lang === 'en' ? EN[k] : DE[k]) ?? DE[k] ?? k;
 function applyLang() {
@@ -444,6 +444,12 @@ function setView(v) {
   api('/api/list?id=' + encodeURIComponent(v)).then(r => {
     if (view !== v || !r.firms) return;
     $('#sheetTitle').textContent = r.titel;
+    // Recherchedauer anzeigen (lokal: dauer_s, Web: aus Start- und Endzeit)
+    const dauer = r.dauer_s ?? (r.endedAt && r.startedAt ? Math.round((r.endedAt - r.startedAt) / 1000) : null);
+    if (dauer != null) {
+      $('#elapsed').textContent = `${t('dauer')} ${Math.floor(dauer / 60)}:${String(dauer % 60).padStart(2, '0')} Min.`;
+      $('#elapsedWrap').classList.remove('hide');
+    }
     cols = r.cols; firms = r.firms; shown = new Set(firms.map(f => f.website + '|' + f.firma)); open.clear();
     $('#dlBtn').classList.remove('hide'); $('#dlBtn').href = '/api/excel?list=' + encodeURIComponent(v);
     $('#dlBtn').querySelector('span').textContent = t('download');
@@ -477,7 +483,7 @@ function renderJob() {
   $('#summaryBox').classList.toggle('hide', !(job.state === 'done' && job.summary));
   $('#summary').innerHTML = job.state === 'done' ? md(job.summary || '') : '';
   clearInterval(tick);
-  const upd = () => { const s = Math.max(0, Math.floor(((job.endedAt || Date.now()) - job.startedAt) / 1000)); $('#elapsed').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  const upd = () => { const s = Math.max(0, Math.floor(((job.endedAt || Date.now()) - job.startedAt) / 1000)); $('#elapsed').textContent = (job.endedAt ? t('dauer') + ' ' : '') + `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` + (job.endedAt ? ' Min.' : ''); };
   upd(); if (running) tick = setInterval(upd, 1000);
   $('#log').innerHTML = '';
   (job.log || []).forEach(addLog);
