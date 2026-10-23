@@ -11,8 +11,8 @@ function cloudApplyProvider(){
  if($('#cloudProvider'))$('#cloudProvider').value=cloudProvider;
  for(const [key,value]of Object.entries({lead:cloudText(`Dein eigenes ${client} sucht passende Firmen mit Entscheidern, Durchwahlen und Kaufsignalen. Jede Angabe mit Quelle, keine Firma doppelt.`,`Your own ${client} finds matching companies with decision makers, direct lines and buying signals. Every fact with a source.`),local:cloudText(`Im Browser. Dein eigenes ${name}-Konto.`,`In your browser. Your own ${name} account.`),runHint:cloudText(`Auftrag hier erstellen, im eigenen ${client}-Tab recherchieren.`,`Create your brief here, research in your own ${client} tab.`),h2d:cloudText(`Dein ${client} recherchiert. Firmen erscheinen hier live.`,`Your ${client} researches. Companies appear live here.`)}))document.querySelectorAll(`[data-i="${key}"]`).forEach(e=>e.textContent=value);
  $('#cloudHandoffTitle').textContent=cloudText(`Mit deinem eigenen ${client} recherchieren`,`Research with your own ${client}`);
- $('#cloudHandoffText').textContent=cloudProvider==='openai'?cloudText('Aktiviere in ChatGPT Work dein Anrufliste-Plugin und die Websuche. Füge den kopierten Auftrag ein. Die Firmen erscheinen automatisch hier.','In ChatGPT Work, enable your Anrufliste plugin and web search. Paste the copied brief. Companies appear here automatically.'):cloudText('Aktiviere im Claude-Chat den Anrufliste-Connector und die Websuche. Füge den kopierten Auftrag ein. Die Firmen erscheinen automatisch hier.','Enable the Anrufliste connector and web search in Claude. Paste the copied brief. Companies appear here automatically.');
- $('#cloudResearch').textContent=cloudText(`Auftrag kopieren & ${client} öffnen ↗`,`Copy brief & open ${client} ↗`);
+ $('#cloudHandoffText').textContent=cloudProvider==='openai'?cloudText('Aktiviere in ChatGPT Work dein Anrufliste-Plugin und die Websuche. Füge den kopierten Auftrag ein. Die Firmen erscheinen automatisch hier.','In ChatGPT Work, enable your Anrufliste plugin and web search. Paste the copied brief. Companies appear here automatically.'):cloudText('Ein Klick öffnet Claude mit dem fertigen Auftrag, dort nur noch Senden drücken. Der Anrufliste-Connector muss eingeschaltet sein (Menü „+“ → Konnektoren). Die Firmen erscheinen automatisch hier.','One click opens Claude with your brief, just press send there. The Anrufliste connector must be on (menu “+” → Connectors). Companies appear here automatically.');
+ $('#cloudResearch').textContent=cloudProvider==='openai'?cloudText(`Auftrag kopieren & ${client} öffnen ↗`,`Copy brief & open ${client} ↗`):cloudText(`In ${client} recherchieren ↗`,`Research in ${client} ↗`);
  $('#summaryBox').querySelector('summary').textContent=cloudText('Zusammenfassung der Recherche','Research summary');
  cloudStatus();
 }
@@ -70,8 +70,10 @@ window.addEventListener('DOMContentLoaded',()=>{
  $('#closeConnector').onclick=()=>$('#connectorDialog').close();
  $('#copyConnector').onclick=()=>copyValue(connectorUrl,$('#connectorState'));$('#checkConnector').onclick=()=>cloudTick();
  $('#cloudResearch').onclick=async()=>{
-  const tab=window.open(cloudProvider==='openai'?'https://chatgpt.com/':'https://claude.ai/new','_blank');if(tab)tab.opener=null;
-  $('#cloudPromptBox').open=true;await copyValue(cloudPrompt,$('#cloudCopyState'));
-  $('#cloudCopyState').textContent+=cloudProvider==='openai'?cloudText(' In ChatGPT Work @Anrufliste und die Websuche aktivieren, Auftrag einfügen und absenden.',' In ChatGPT Work enable @Anrufliste and web search, paste the brief and send.'):cloudText(' In Claude den Anrufliste-Connector und die Websuche aktivieren, Auftrag einfügen und absenden.',' Enable the Anrufliste connector and web search in Claude, paste the brief and send.');
+  // Erst kopieren (solange diese Seite den Fokus hat), dann öffnen. Claude bekommt den Auftrag direkt ins Eingabefeld.
+  await copyValue(cloudPrompt,$('#cloudCopyState'));
+  const url=cloudProvider==='openai'?'https://chatgpt.com/':'https://claude.ai/new?q='+encodeURIComponent(cloudPrompt);
+  const tab=window.open(url,'_blank');if(tab)tab.opener=null;
+  $('#cloudCopyState').textContent=cloudProvider==='openai'?cloudText('Auftrag kopiert. In ChatGPT Work @Anrufliste aktivieren, einfügen und absenden.','Brief copied. In ChatGPT Work enable @Anrufliste, paste and send.'):cloudText('Claude ist mit dem Auftrag geöffnet. Dort nur noch auf Senden drücken.','Claude is open with your brief. Just press send there.');
  };
 });
