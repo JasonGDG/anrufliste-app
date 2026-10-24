@@ -392,7 +392,9 @@ function classify(text) {
   const t = String(text || '');
   if (/not logged in|please run \/login|invalid api key|authentication_error|oauth token|\b401\b|unauthori[sz]ed/i.test(t))
     return { code: 'login', message: t.trim().slice(0, 300) };
-  if (/usage limit|rate[ _-]?limit|limit reached|hit your limit|\b429\b|overloaded|resets? (at )?\d/i.test(t))
+  if (/spend limit|extra usage|out of (extra )?usage|credit balance/i.test(t))
+    return { code: 'spend', message: t.trim().slice(0, 300) };
+  if (/usage limit|rate[ _-]?limit|limit reached|hit your (\w+ )?limit|\b429\b|overloaded|resets? (at )?\d/i.test(t))
     return { code: 'limit', message: t.trim().slice(0, 300) };
   return null;
 }

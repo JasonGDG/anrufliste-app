@@ -310,6 +310,7 @@ const EN = {
   stPrep: 'Prepare', stRes: 'Research', stXls: 'Excel',
   sRunning: 'Claude is researching. Companies appear below as they come in.', sDone: 'Done. Your list is ready.', sCancelled: 'Cancelled.',
   eLogin: 'Not signed in (anymore)', eLoginTxt: 'Sign in to Claude again, then start the list again.',
+  eSpend: 'Monthly spend limit reached', eSpendTxt: 'This Claude account has reached the monthly spend limit for extra usage. The account owner or admin can raise it under claude.ai/settings/usage. Then start the list again.',
   eLimit: 'Usage limit reached', eLimitTxt: 'Your Claude plan has hit its limit. Wait until it resets, then try again.',
   eCrash: 'Something went wrong', eNoexcel: 'No list was built', eMissing: 'Claude Code not found', retry: 'Try again',
   companies: 'companies', partial: 'The companies found so far are in the Excel file and won\'t come up again next time.',
@@ -333,6 +334,7 @@ Object.assign(DE, {
   stPrep: 'Vorbereiten', stRes: 'Recherche', stXls: 'Excel',
   sRunning: 'Claude recherchiert. Die Firmen erscheinen unten, sobald sie reinkommen.', sDone: 'Fertig. Deine Liste ist bereit.', sCancelled: 'Abgebrochen.',
   eLogin: 'Nicht (mehr) angemeldet', eLoginTxt: 'Bitte neu bei Claude anmelden und die Liste dann noch einmal starten.',
+  eSpend: 'Monatliches Ausgabelimit erreicht', eSpendTxt: 'Dieses Claude-Konto hat sein monatliches Ausgabelimit für Zusatznutzung erreicht. Der Kontoinhaber oder Admin kann es unter claude.ai/settings/usage erhöhen. Danach die Liste neu starten.',
   eLimit: 'Limit erreicht', eLimitTxt: 'Dein Claude-Kontingent ist aufgebraucht. Warte bis zum Reset und versuche es dann noch einmal.',
   eCrash: 'Etwas ist schiefgelaufen', eNoexcel: 'Es wurde keine Liste gebaut', eMissing: 'Claude Code nicht gefunden', retry: 'Erneut versuchen',
   companies: 'Firmen', partial: 'Die bis dahin gefundenen Firmen stehen unten in der Excel und kommen beim nächsten Mal nicht doppelt.',
@@ -501,6 +503,8 @@ function renderError() {
   if (e.code === 'login') {
     $('#errorBox').innerHTML = notice('bad', t('eLogin'), esc(t('eLoginTxt')) + partial, `<button class="btn pri sm" data-act="login">${esc(t('login'))}</button>${retry}`);
     if (loginChecked !== job.id) { loginChecked = job.id; refreshStatus(true); }
+  } else if (e.code === 'spend') {
+    $('#errorBox').innerHTML = notice('warn', t('eSpend'), `${esc(t('eSpendTxt'))}<code>${esc(e.message)}</code>${partial}`, `<a class="btn sec sm" href="https://claude.ai/settings/usage" target="_blank" rel="noopener">claude.ai/settings/usage</a>${retry}`);
   } else if (e.code === 'limit') {
     $('#errorBox').innerHTML = notice('warn', t('eLimit'), `${esc(t('eLimitTxt'))}<code>${esc(e.message)}</code>${partial}`);
   } else {
