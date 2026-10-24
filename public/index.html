@@ -310,6 +310,7 @@ const EN = {
   stPrep: 'Prepare', stRes: 'Research', stXls: 'Excel',
   sRunning: 'Claude is researching. Companies appear below as they come in.', sDone: 'Done. Your list is ready.', sCancelled: 'Cancelled.',
   eLogin: 'Not signed in (anymore)', eLoginTxt: 'Sign in to Claude again, then start the list again.',
+  switchAcc: 'Switch Claude account', acctUsed: 'The tool uses the Claude account:', acctHint: 'If this is not the account with free usage, switch it here. Your browser opens; choose the right account there.',
   eSpend: 'Monthly spend limit reached', eSpendTxt: 'This Claude account has reached the monthly spend limit for extra usage. The account owner or admin can raise it under claude.ai/settings/usage. Then start the list again.',
   eLimit: 'Usage limit reached', eLimitTxt: 'Your Claude plan has hit its limit. Wait until it resets, then try again.',
   eCrash: 'Something went wrong', eNoexcel: 'No list was built', eMissing: 'Claude Code not found', retry: 'Try again',
@@ -334,6 +335,7 @@ Object.assign(DE, {
   stPrep: 'Vorbereiten', stRes: 'Recherche', stXls: 'Excel',
   sRunning: 'Claude recherchiert. Die Firmen erscheinen unten, sobald sie reinkommen.', sDone: 'Fertig. Deine Liste ist bereit.', sCancelled: 'Abgebrochen.',
   eLogin: 'Nicht (mehr) angemeldet', eLoginTxt: 'Bitte neu bei Claude anmelden und die Liste dann noch einmal starten.',
+  switchAcc: 'Claude-Konto wechseln', acctUsed: 'Das Tool nutzt das Claude-Konto:', acctHint: 'Ist das nicht das Konto mit freiem Kontingent, hier wechseln. Der Browser öffnet sich, dort das richtige Konto wählen.',
   eSpend: 'Monatliches Ausgabelimit erreicht', eSpendTxt: 'Dieses Claude-Konto hat sein monatliches Ausgabelimit für Zusatznutzung erreicht. Der Kontoinhaber oder Admin kann es unter claude.ai/settings/usage erhöhen. Danach die Liste neu starten.',
   eLimit: 'Limit erreicht', eLimitTxt: 'Dein Claude-Kontingent ist aufgebraucht. Warte bis zum Reset und versuche es dann noch einmal.',
   eCrash: 'Etwas ist schiefgelaufen', eNoexcel: 'Es wurde keine Liste gebaut', eMissing: 'Claude Code nicht gefunden', retry: 'Erneut versuchen',
@@ -393,6 +395,7 @@ function renderStatus() {
     h += notice('warn', t('pyTitle'), `${esc(t('pyTxt'))} <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">${esc(t('pyLink'))}</a>`, recheck);
   $('#setup').innerHTML = h;
   updateRunBtn();
+  if (job && job.error && job.error.code === 'spend' && $('#errorBox').innerHTML) renderError();
 }
 function updateRunBtn() {
   const ready = st && st.installed && st.loggedIn && st.python && !st.claudeTooOld;
@@ -504,7 +507,9 @@ function renderError() {
     $('#errorBox').innerHTML = notice('bad', t('eLogin'), esc(t('eLoginTxt')) + partial, `<button class="btn pri sm" data-act="login">${esc(t('login'))}</button>${retry}`);
     if (loginChecked !== job.id) { loginChecked = job.id; refreshStatus(true); }
   } else if (e.code === 'spend') {
-    $('#errorBox').innerHTML = notice('warn', t('eSpend'), `${esc(t('eSpendTxt'))}<code>${esc(e.message)}</code>${partial}`, `<a class="btn sec sm" href="https://claude.ai/settings/usage" target="_blank" rel="noopener">claude.ai/settings/usage</a>${retry}`);
+    const acct = st && st.email ? `<br><br>${esc(t('acctUsed'))} <b>${esc(st.email)}</b><br>${esc(t('acctHint'))}` : `<br><br>${esc(t('acctHint'))}`;
+    const wait = loggingIn ? `<br>${esc(t('loginWait'))}${loginUrl ? ` <a href="${esc(loginUrl)}" target="_blank" rel="noopener">${esc(loginUrl.slice(0, 48))}…</a>` : ''}` : '';
+    $('#errorBox').innerHTML = notice('warn', t('eSpend'), `${esc(t('eSpendTxt'))}${acct}${wait}<code>${esc(e.message)}</code>${partial}`, `<button class="btn pri sm" data-act="login" ${loggingIn ? 'disabled' : ''}>${esc(t('switchAcc'))}</button><a class="btn sec sm" href="https://claude.ai/settings/usage" target="_blank" rel="noopener">claude.ai/settings/usage</a>${retry}`);
   } else if (e.code === 'limit') {
     $('#errorBox').innerHTML = notice('warn', t('eLimit'), `${esc(t('eLimitTxt'))}<code>${esc(e.message)}</code>${partial}`);
   } else {
