@@ -66,6 +66,7 @@ a{color:var(--cyan)}
 .who{display:flex;align-items:center;gap:8px;color:var(--ink-2);min-width:0}
 .who .dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
 .who.ok .dot{background:var(--a)}.who.bad .dot{background:var(--red)}
+#acctSwitch{align-self:flex-start}
 #acctMail{color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .footrow{display:flex;gap:8px;align-items:center}
 .linkbtn{font:500 12px/1 var(--font);color:var(--ink-3);background:none;border:1px solid var(--rule-2);border-radius:5px;padding:6px 9px;cursor:pointer}
@@ -193,6 +194,7 @@ tr.gesperrt .sperr{opacity:1;color:var(--red);border-color:var(--red)}
     <nav class="nav" id="nav"></nav>
     <div class="sidefoot">
       <div class="who" id="acct"><span class="dot"></span><span id="acctLbl">…</span><span id="acctMail"></span></div>
+      <button class="linkbtn hide" id="acctSwitch" type="button" data-act="login" data-i="switchAcc">Claude-Konto wechseln</button>
       <div class="footrow"><button class="linkbtn" id="langBtn" type="button">EN</button><button class="linkbtn" id="themeBtn" type="button"></button><button class="linkbtn" id="keyToggle" type="button" data-i="keyShort">API-Schlüssel</button></div>
       <div class="keybox hide" id="keyBox">
         <p class="small" data-i="keyHint">Statt deines Claude-Logins über die Anthropic-API abrechnen. Bleibt auf diesem Rechner.</p>
@@ -377,6 +379,8 @@ function renderStatus() {
   $('#acct').className = 'who ' + (ok ? 'ok' : 'bad');
   $('#acctLbl').textContent = !st.installed ? t('notInstalled') : !st.loggedIn ? t('notLogged') : st.apiKey ? t('apiKeyUsed') : t('loggedAs');
   $('#acctMail').textContent = ok && !st.apiKey ? (st.email || '') : '';
+  $('#acctSwitch').classList.toggle('hide', !ok || !!st.apiKey);
+  $('#acctSwitch').disabled = loggingIn;
   $('#ver').textContent = 'Anrufliste ' + st.version;
   $('#altDir').textContent = st.listsDir ? st.listsDir + (st.listsDir.includes('\\') ? '\\alt' : '/alt') : '';
   $('#keyDel').classList.toggle('hide', !st.apiKey);
