@@ -23,7 +23,8 @@ A few things I cared about:
 
 It's tuned for German-speaking markets for now. I'd love to hear which markets and columns you'd want next.
 
-**Gallery (1270x760):**
+**Gallery (1270x760):** ready in `docs/gallery/` (fictitious demo data, no real contacts): `1-call-list.png`, `2-new-list.png`. Still to do: GIF of a live run, Excel screenshot.
+
 1. The form + table filling up live (hero)
 2. Finished Excel, call list sheet
 3. Call script sheet
