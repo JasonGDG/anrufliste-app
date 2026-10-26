@@ -26,7 +26,7 @@ if (ARGS.includes('--help') || ARGS.includes('-h')) {
   console.log(`anrufliste ${VERSION}
 Startet die Anrufliste im Browser. Voraussetzung: Claude Code (claude) ist installiert und angemeldet.
 
-  npx anrufliste            starten und Browser öffnen
+  npx github:JasonGDG/anrufliste-app            starten und Browser öffnen
   --port <n>                Port (Standard 3737)
   --no-open                 Browser nicht öffnen
 Listen landen in ${LISTEN_DIR} (änderbar mit ANRUFLISTEN_DIR).`);

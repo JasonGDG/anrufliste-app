@@ -3,7 +3,7 @@
 **Cold-call lists, researched by your own Claude.** Describe what you sell and which companies you want to call. A few minutes later you get a ready-to-call Excel sheet: decision makers, direct lines, employee counts with sources, buying signals and a call script.
 
 ```bash
-npx anrufliste
+npx github:JasonGDG/anrufliste-app
 ```
 
 Opens in your browser at `localhost:3737`. No account, no server, no API costs on top of your Claude plan.
@@ -55,9 +55,9 @@ You are responsible for the calls you make and the data in your lists.
 ## Options
 
 ```bash
-npx anrufliste --port 4000     # different port
-npx anrufliste --no-open       # don't open the browser
-ANRUFLISTEN_DIR=~/Leads npx anrufliste   # different folder for lists
+npx github:JasonGDG/anrufliste-app --port 4000     # different port
+npx github:JasonGDG/anrufliste-app --no-open       # don't open the browser
+ANRUFLISTEN_DIR=~/Leads npx github:JasonGDG/anrufliste-app   # different folder for lists
 ```
 
 ## License

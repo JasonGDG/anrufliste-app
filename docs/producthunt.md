@@ -9,7 +9,7 @@
 **Link:** https://github.com/JasonGDG/anrufliste-app
 
 **Description (max 260):**
-Describe what you sell and which companies you want to call. Your local Claude Code researches them in parallel and you get a ready-to-call Excel sheet: decision makers, direct lines, buying signals, call script. One command: npx anrufliste
+Describe what you sell and which companies you want to call. Your local Claude Code researches them in parallel and you get a ready-to-call Excel sheet: decision makers, direct lines, buying signals, call script. One command: npx github:JasonGDG/anrufliste-app
 
 **First comment (maker):**
 Hi Product Hunt! I built this for a friend's two-person staffing agency. Their sales guy spent hours every week googling companies, digging through imprints and job boards to find someone worth calling.
