@@ -4,7 +4,11 @@
 
 **Tagline (max 60):** Cold-call lists researched by your own Claude Code
 
-**Topics:** Sales, Artificial Intelligence, Developer Tools, Productivity
+**Launch tags (max 3):** Sales, Artificial Intelligence, Productivity
+
+**Pricing:** Free · **Open source:** yes (tick the checkbox)
+
+**Thumbnail (240x240):** `docs/gallery/0-thumbnail.png`
 
 **Link:** https://github.com/JasonGDG/anrufliste-app
 
